@@ -1,0 +1,77 @@
+[gd_scene load_steps=6 format=3 uid="uid://bbx55nsngcb8o"]
+
+[ext_resource type="FontFile" uid="uid://d0ulah5m2nmag" path="res://menu/font/DotGothic16-Regular.ttf" id="1_fhjmu"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jt0ut"]
+content_margin_left = 10.0
+content_margin_top = 10.0
+content_margin_right = 10.0
+content_margin_bottom = 10.0
+bg_color = Color(0.192157, 0.192157, 0.192157, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rcv8j"]
+content_margin_left = 10.0
+content_margin_top = 2.0
+content_margin_right = 10.0
+content_margin_bottom = 4.0
+bg_color = Color(0.0901961, 0.0901961, 0.0901961, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_xnpai"]
+content_margin_left = 10.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_d8den"]
+content_margin_left = 10.0
+content_margin_top = 2.0
+content_margin_right = 10.0
+content_margin_bottom = 4.0
+bg_color = Color(0.121569, 0.121569, 0.121569, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="translation_packet" type="PanelContainer"]
+offset_right = 647.0
+offset_bottom = 109.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_jt0ut")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="jptext_container" type="PanelContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_rcv8j")
+
+[node name="jptext" type="RichTextLabel" parent="VBoxContainer/jptext_container"]
+layout_mode = 2
+theme_override_fonts/normal_font = ExtResource("1_fhjmu")
+text = "おねがいします。"
+fit_content = true
+
+[node name="jpread_container" type="PanelContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxEmpty_xnpai")
+
+[node name="jpread" type="RichTextLabel" parent="VBoxContainer/jpread_container"]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.709804, 0.690196, 0.678431, 1)
+text = "o-ne-ga-i-shi-ma-su"
+fit_content = true
+
+[node name="engtext_container" type="PanelContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_d8den")
+
+[node name="engtext" type="RichTextLabel" parent="VBoxContainer/engtext_container"]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.913725, 0.890196, 0.843137, 1)
+text = "please"
+fit_content = true

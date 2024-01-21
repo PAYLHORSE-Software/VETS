@@ -1,0 +1,12 @@
+[package]
+name = "rust"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+bindgen = "0.69.2"
+godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
+pyo3 = "0.20.2"
