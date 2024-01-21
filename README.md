@@ -12,7 +12,7 @@ payl is typing...
 
 ## FEATURES
 
-## INSTALLATION
+## USAGE
 
 Assuming you have **Python** and **pip** installed on your system, VETS has a single additional dependency:
 
@@ -20,3 +20,19 @@ Assuming you have **Python** and **pip** installed on your system, VETS has a si
 pip3 install manga-ocr
 ```
 
+**Linux user?** A few more dependencies in your case ;(
+
+**Ubuntu:**
+```bash
+sudo apt install libxcb1 libxrandr2 libdbus-1-3
+```
+
+**Alpine:**
+```bash
+apk add libxcb libxrandr dbus
+```
+
+**Arch:**
+```bash
+pacman -S libxcb libxrandr dbus
+```
