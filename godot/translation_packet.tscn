@@ -1,18 +1,7 @@
-[gd_scene load_steps=7 format=3 uid="uid://bbx55nsngcb8o"]
+[gd_scene load_steps=6 format=3 uid="uid://bbx55nsngcb8o"]
 
-[ext_resource type="Texture2D" uid="uid://cb51lskqreuxa" path="res://menu/sprite/panel_packet.png" id="1_7t6yl"]
+[ext_resource type="StyleBox" uid="uid://dpc75oo8yhr7h" path="res://panel_translation_packet.tres" id="1_bkgic"]
 [ext_resource type="FontFile" uid="uid://d0ulah5m2nmag" path="res://menu/font/DotGothic16-Regular.ttf" id="1_fhjmu"]
-
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_eqn42"]
-content_margin_left = 10.0
-content_margin_top = 10.0
-content_margin_right = 10.0
-content_margin_bottom = 10.0
-texture = ExtResource("1_7t6yl")
-texture_margin_left = 10.0
-texture_margin_top = 10.0
-texture_margin_right = 10.0
-texture_margin_bottom = 10.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_rcv8j"]
 content_margin_left = 10.0
@@ -42,7 +31,7 @@ corner_radius_bottom_left = 4
 [node name="translation_packet" type="PanelContainer"]
 offset_right = 647.0
 offset_bottom = 109.0
-theme_override_styles/panel = SubResource("StyleBoxTexture_eqn42")
+theme_override_styles/panel = ExtResource("1_bkgic")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 layout_mode = 2
