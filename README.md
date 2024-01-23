@@ -5,16 +5,14 @@
 
 ## ABOUT
 
-**WORK IN PROGRESS**
+Current translation solutions for Japanese games are too messy for general use. VETS hopes to be a full-featured, unintrusive, utilitarian solution for tackling that text-heavy imported JRPG or VN with confidence.
 
-Current translation solutions for Japanese games require a setup far too involved for general use. VETS hopes to be a full-featured, unintrusive, plug-and-play solution for tackling that text-heavy imported JRPG or VN with confidence.
-
-VETS uses ![tesseract](https://github.com/tesseract-ocr/tesseract) to spot text, ![KAKASI](http://kakasi.namazu.org/index.html.en) for romaji conversion, and DeepL machine translation.
-
-payl is typing...
+VETS uses the Google Cloud Vision API to spot text, ![KAKASI](http://kakasi.namazu.org/index.html.en) for romaji conversion, and DeepL machine translation.
 
 ## FEATURES
 
-## USAGE
+- **Cutting-Edge OCR and Translation:** The gcloud and DeepL set up might be a little involved, but the end result really is the best of the best screen translation: take our word for it.
 
-VETS has a single requirement, that being having **tesseract** installed on your system. See: https://tesseract-ocr.github.io/tessdoc/Installation.html
+## REQUIREMENTS
+
+payl is typing...
