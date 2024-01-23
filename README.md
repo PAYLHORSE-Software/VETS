@@ -4,9 +4,12 @@
 </p>
 
 ## ABOUT
+
+**WORK IN PROGRESS**
+
 Current translation solutions for Japanese games require a setup far too involved for general use. VETS hopes to be a full-featured, unintrusive, plug-and-play solution for tackling that text-heavy imported JRPG or VN with confidence.
 
-VETS uses the excellent ![manga-ocr](https://github.com/kha-white/manga-ocr) library to spot text, ![KAKASI](http://kakasi.namazu.org/index.html.en) for romaji conversion, and DeepL machine translation.
+VETS uses ![tesseract](https://github.com/tesseract-ocr/tesseract) to spot text, ![KAKASI](http://kakasi.namazu.org/index.html.en) for romaji conversion, and DeepL machine translation.
 
 payl is typing...
 
@@ -14,25 +17,4 @@ payl is typing...
 
 ## USAGE
 
-Assuming you have **Python** and **pip** installed on your system, VETS has a single additional dependency:
-
-```bash
-pip3 install manga-ocr
-```
-
-**Linux user?** A few more dependencies in your case ;(
-
-**Ubuntu:**
-```bash
-sudo apt install libxcb1 libxrandr2 libdbus-1-3
-```
-
-**Alpine:**
-```bash
-apk add libxcb libxrandr dbus
-```
-
-**Arch:**
-```bash
-pacman -S libxcb libxrandr dbus
-```
+VETS has a single requirement, that being having **tesseract** installed on your system. See: https://tesseract-ocr.github.io/tessdoc/Installation.html
