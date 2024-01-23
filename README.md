@@ -3,6 +3,8 @@
 <strong>A utilitarian screen translation tool for Japanese games.</strong>
 </p>
 
+![VETS_preview](https://github.com/paylhorse/VETS/assets/74363924/3f79d151-60be-4e78-8cbb-4873ef82f213)
+
 ## ABOUT
 
 Current translation solutions for Japanese games are too messy for general use. VETS hopes to be a full-featured, unintrusive, utilitarian solution for tackling that text-heavy imported JRPG or VN with confidence.
