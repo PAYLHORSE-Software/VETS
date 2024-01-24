@@ -2,7 +2,7 @@ use std::io::ErrorKind::WouldBlock;
 use std::thread;
 use std::time::Duration;
 use std::io::Cursor;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use godot::prelude::*;
 use godot::engine::{InputEvent, Control, PanelContainer, VBoxContainer, Image, ImageTexture, TextureRect, LineEdit, TextEdit, RichTextLabel, FileAccess};
 use godot::engine::file_access::ModeFlags;
@@ -255,7 +255,7 @@ async fn send_deepl_api_request(text: &str, auth_key: &str) -> Result<Value, req
     Ok(response)
 }
 
-async fn parse_vision_response(response_json: Value, deepl_token: &str) -> Vec<TranslationPacket> {
+async fn parse_vision_response(response_json: Value, deepl_token: &str) -> Result<Vec<TranslationPacket>, ErrorOrWarning> {
     let mut packets = Vec::new();
     if let Some(pages) = response_json["responses"][0]["fullTextAnnotation"]["pages"].as_array() {
         for page in pages {
@@ -292,9 +292,11 @@ async fn parse_vision_response(response_json: Value, deepl_token: &str) -> Vec<T
                                 Err(error) => {
                                     godot_print!("DeepL error!");
                                     let eow = ErrorOrWarning {
-                                        string: (format!("Failed to communicate with DeepL: {}", error)),
+                                        string: (format!("Failed to communicate with DeepL, check credentials!\n{}", error)),
                                         is_warning: false,
                                     };
+                                    return Err(eow);
+                                    break;
                                 }
                             }
                         }
@@ -303,7 +305,7 @@ async fn parse_vision_response(response_json: Value, deepl_token: &str) -> Vec<T
             }
         }
     }
-    packets
+    Ok(packets)
 }
 
 fn parse_deepl_response(response_json: Value) -> String {
@@ -357,22 +359,30 @@ impl System {
                 match send_vision_api_request(request_body, &gcloud_token, &project_id).await {
                     Ok(response) => {
                         godot_print!("Google Cloud Vision response received!");
-                        let packets = parse_vision_response(response.clone(), &deepl_token).await;
-                        if packets.is_empty() {
-                            let mut error_queue = error_queue_clone.lock().unwrap();
-                            let eow = ErrorOrWarning {
-                                string: (format!("Empty reading! It may be that there is no text in the reading area. Otherwise, you may need to update your credentials. Response JSON: {}", response)),
-                                is_warning: true,
-                            };
-                            error_queue.push(eow);
-                        } else {
-                            let mut packets_queue = packets_queue_clone.lock().unwrap();
-                            packets_queue.push(packets);
+                        let result = parse_vision_response(response.clone(), &deepl_token).await;
+                        match result {
+                            Ok(packets) => {
+                                if packets.is_empty() {
+                                    let mut error_queue = error_queue_clone.lock().unwrap();
+                                    let eow = ErrorOrWarning {
+                                        string: (format!("Empty reading! It may be that there is no text in the reading area. Otherwise, you may need to update your credentials. Response JSON: {}", response)),
+                                        is_warning: true,
+                                    };
+                                    error_queue.push(eow);
+                                } else {
+                                    let mut packets_queue = packets_queue_clone.lock().unwrap();
+                                    packets_queue.push(packets);
+                                }
+                            },
+                            Err(eow) => {
+                                let mut error_queue = error_queue_clone.lock().unwrap();
+                                error_queue.push(eow);
+                            }
                         }
                     }
                     Err(error) => {
-                        let mut error_queue = error_queue_clone.lock().unwrap();
                         godot_print!("Google Cloud Vision error!");
+                        let mut error_queue = error_queue_clone.lock().unwrap();
                         let eow = ErrorOrWarning {
                             string: (format!("Failed to communicate Google Cloud Vision: {}", error)),
                             is_warning: false,

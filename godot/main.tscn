@@ -1,6 +1,7 @@
-[gd_scene load_steps=13 format=3 uid="uid://d2q7slbpi7qn6"]
+[gd_scene load_steps=14 format=3 uid="uid://d2q7slbpi7qn6"]
 
 [ext_resource type="FontFile" uid="uid://b8ucslu0qt1vv" path="res://menu/font/ShipporiMincho-Regular.ttf" id="1_r3sp7"]
+[ext_resource type="Texture2D" uid="uid://bh842vaj04tc1" path="res://menu/sprite/save.png" id="2_17x32"]
 [ext_resource type="PackedScene" uid="uid://bbx55nsngcb8o" path="res://translation_packet.tscn" id="3_xfip8"]
 [ext_resource type="Texture2D" uid="uid://bu4jb7r0gkmjj" path="res://menu/graphic/placeholder.png" id="3_xx6t0"]
 [ext_resource type="Texture2D" uid="uid://dowesepbdiydr" path="res://menu/sprite/refresh.png" id="4_ig5gt"]
@@ -70,8 +71,7 @@ grow_vertical = 2
 theme = SubResource("Theme_ympfr")
 
 [node name="MarginContainer" type="MarginContainer" parent="sandGUI"]
-layout_mode = 1
-anchors_preset = 15
+layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
@@ -114,8 +114,10 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_vertical = 3
 tab_alignment = 2
+current_tab = 1
 
 [node name="Reader" type="ScrollContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer"]
+visible = false
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoxEmpty_ouk8d")
@@ -138,7 +140,6 @@ text = "[center]Translation Packets will appear here after capturing and reading
 fit_content = true
 
 [node name="Settings" type="MarginContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer"]
-visible = false
 layout_mode = 2
 theme_override_constants/margin_left = 4
 theme_override_constants/margin_top = 4
@@ -212,6 +213,12 @@ custom_minimum_size = Vector2(310, 0)
 layout_mode = 2
 placeholder_text = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 alignment = 2
+
+[node name="Button2" type="Button" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+text = "SAVE CREDENTIALS"
+icon = ExtResource("2_17x32")
+expand_icon = true
 
 [node name="RichTextLabel3" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
 layout_mode = 2
@@ -322,6 +329,12 @@ text = "px
 "
 fit_content = true
 
+[node name="Button3" type="Button" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+text = "SAVE READING AREA PRESET"
+icon = ExtResource("2_17x32")
+expand_icon = true
+
 [node name="RichTextLabel2" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_colors/default_color = Color(0.470588, 0.470588, 0.470588, 1)
@@ -336,7 +349,7 @@ layout_mode = 2
 text = "これはその一例だ。"
 
 [node name="jpread" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/translation_packet/VBoxContainer/jpread_container" index="0"]
-text = "Romaji bullshit"
+text = "korehasono ichirei da."
 
 [node name="engtext" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/translation_packet/VBoxContainer/engtext_container" index="0"]
 text = "This is an example."
@@ -366,22 +379,21 @@ layout_mode = 2
 [node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Font Size:"
+bbcode_enabled = true
+text = "Font Size:
+[color=#777777]12-32"
 fit_content = true
 
-[node name="OptionButton" type="OptionButton" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer"]
+[node name="LineEdit" type="LineEdit" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer"]
 layout_mode = 2
-flat = true
-item_count = 4
-selected = 0
-popup/item_0/text = "12"
-popup/item_0/id = 0
-popup/item_1/text = "14"
-popup/item_1/id = 1
-popup/item_2/text = "16"
-popup/item_2/id = 2
-popup/item_3/text = "18"
-popup/item_3/id = 3
+text = "16"
+
+[node name="RichTextLabel2" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
+theme_override_colors/default_color = Color(0.313726, 0.313726, 0.313726, 1)
+text = "px"
+fit_content = true
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
 layout_mode = 2
@@ -409,16 +421,64 @@ theme_override_colors/default_color = Color(0.223529, 0.223529, 0.223529, 1)
 text = "CONSOLE"
 fit_content = true
 
-[node name="TextEdit" type="TextEdit" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer"]
+[node name="console_text" type="TextEdit" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_colors/background_color = Color(0, 0, 0, 1)
+theme_override_colors/font_readonly_color = Color(0.694118, 0.694118, 0.694118, 1)
 placeholder_text = "Welcome to VETS!
 Start by inputting CREDENTIALS and configuring the READING AREA in the Settings menu.
 Then, press 'x' on your keyboard to capture and read the screen.
 "
+editable = false
 wrap_mode = 1
 
-[connection signal="pressed" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/Button" to="." method="capture_screen"]
+[node name="vbox_error" type="VBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer"]
+visible = false
+layout_mode = 2
+
+[node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/vbox_error"]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.662745, 0.415686, 0.301961, 1)
+text = "!ERROR !"
+fit_content = true
+text_direction = 2
+
+[node name="console_error" type="TextEdit" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/vbox_error"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/background_color = Color(0, 0, 0, 1)
+theme_override_colors/font_readonly_color = Color(0.662745, 0.415686, 0.301961, 1)
+theme_override_fonts/font = ExtResource("1_r3sp7")
+placeholder_text = "
+"
+editable = false
+wrap_mode = 1
+
+[node name="vbox_warning" type="VBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer"]
+visible = false
+layout_mode = 2
+
+[node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/vbox_warning"]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.827451, 0.694118, 0.498039, 1)
+text = "Warning"
+fit_content = true
+text_direction = 2
+
+[node name="console_warning" type="TextEdit" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/vbox_warning"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/background_color = Color(0, 0, 0, 1)
+theme_override_colors/font_readonly_color = Color(0.827451, 0.694118, 0.498039, 1)
+theme_override_fonts/font = ExtResource("1_r3sp7")
+placeholder_text = "
+"
+editable = false
+wrap_mode = 1
+
+[connection signal="pressed" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/Button2" to="." method="save_credentials"]
+[connection signal="pressed" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/Button" to="." method="capture_screen" binds= [true]]
+[connection signal="pressed" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/Button3" to="." method="save_reading_area"]
 
 [editable path="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/translation_packet"]

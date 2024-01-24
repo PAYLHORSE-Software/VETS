@@ -43,6 +43,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_rcv8j")
 [node name="jptext" type="RichTextLabel" parent="VBoxContainer/jptext_container"]
 layout_mode = 2
 theme_override_fonts/normal_font = ExtResource("1_fhjmu")
+theme_override_font_sizes/normal_font_size = 16
 text = "おねがいします。"
 fit_content = true
 
@@ -53,6 +54,7 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_xnpai")
 [node name="jpread" type="RichTextLabel" parent="VBoxContainer/jpread_container"]
 layout_mode = 2
 theme_override_colors/default_color = Color(0.709804, 0.690196, 0.678431, 1)
+theme_override_font_sizes/normal_font_size = 16
 text = "o-ne-ga-i-shi-ma-su"
 fit_content = true
 
@@ -63,5 +65,6 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_d8den")
 [node name="engtext" type="RichTextLabel" parent="VBoxContainer/engtext_container"]
 layout_mode = 2
 theme_override_colors/default_color = Color(0.913725, 0.890196, 0.843137, 1)
+theme_override_font_sizes/normal_font_size = 16
 text = "please"
 fit_content = true

@@ -2,3 +2,5 @@
 godot/.godot/
 godot/_export/
 rust/target/
+godot/Godot_v4.2.1-stable_win64.exe
+godot/Godot_v4.2.1-stable_win64_console.exe
