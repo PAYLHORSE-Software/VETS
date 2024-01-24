@@ -1,6 +1,6 @@
 <h1 align="center"><img src="https://github.com/paylhorse/valmar/assets/74363924/dc6fc259-1c13-4e75-9567-db63a9f97659" width=60px></img> Valmar's Eye Translation Software (VETS) <img src="https://github.com/paylhorse/valmar/assets/74363924/dc6fc259-1c13-4e75-9567-db63a9f97659" width=60px></img></h1>
 <p align="center">
-<strong>A utilitarian screen translation tool for Japanese games.</strong>
+<strong>A utilitarian screen translation tool for Japanese games</strong>
 </p>
 
 ![VETS_preview](https://github.com/paylhorse/VETS/assets/74363924/3f79d151-60be-4e78-8cbb-4873ef82f213)
