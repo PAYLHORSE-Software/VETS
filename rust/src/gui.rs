@@ -29,7 +29,7 @@ impl IControl for sandGUI {
         for i in 0..self.queue_in.len() {
             if i == 0 {
                 let control = &mut self.queue_in[i];
-                let new_alpha = (control.get_modulate().a + (4.0 * delta as f32)).min(1.0);
+                let new_alpha = (control.get_modulate().a + (8.0 * delta as f32)).min(1.0);
                 // godot_print!("{} new alpha: {}", control.get_name(), new_alpha);
                 control.set_modulate(Color::from_rgba(1.0, 1.0, 1.0, new_alpha));
                 if new_alpha >= 1.0 { self.queue_in.remove(i); }
@@ -38,7 +38,7 @@ impl IControl for sandGUI {
         for i in 0..self.queue_out.len() {
             if i == 0 {
                 let control = &mut self.queue_out[i];
-                let new_alpha = (control.get_modulate().a - (4.0 * delta as f32)).max(0.0);
+                let new_alpha = (control.get_modulate().a - (8.0 * delta as f32)).max(0.0);
                 // godot_print!("{} new alpha: {}", control.get_name(), new_alpha);
                 control.set_modulate(Color::from_rgba(1.0, 1.0, 1.0, new_alpha));
                 if new_alpha <= 0.0 {

@@ -2,18 +2,55 @@ use std::io::ErrorKind::WouldBlock;
 use std::thread;
 use std::time::Duration;
 use std::io::Cursor;
+use std::sync::{Arc, Mutex};
 use godot::prelude::*;
-use godot::engine::{InputEvent, Control, PanelContainer, VBoxContainer, Image, ImageTexture, TextureRect, LineEdit, RichTextLabel};
+use godot::engine::{InputEvent, Control, PanelContainer, VBoxContainer, Image, ImageTexture, TextureRect, LineEdit, TextEdit, RichTextLabel, FileAccess};
+use godot::engine::file_access::ModeFlags;
 use scrap::{Capturer, Display};
 use image::{ImageBuffer, Rgba, ImageOutputFormat, GenericImageView};
 use base64::encode;
+use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 use reqwest;
 use crate::utils::*;
 use crate::gui::sandGUI;
 
+struct ScreenCapture {
+    png_buffer: Cursor<Vec<u8>>,
+    is_preview: bool,
+}
+
+struct ErrorOrWarning {
+    string: String,
+    is_warning: bool,
+}
+
 struct TranslationPacket {
     jp_text: String,
+    jp_read: String,
+    eng_text: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct UserCredentials {
+        gcloud_token: String,
+        project_id: String,
+        deepl_token: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ReadingArea {
+    start_x: usize,
+    start_y: usize,
+    width: usize,
+    height: usize,
+}
+
+enum SystemState {
+    IDLE,
+    CAPTURING,
+    READING,
+    PROCESSING,
 }
 
 #[derive(GodotClass)]
@@ -21,6 +58,12 @@ struct TranslationPacket {
 pub struct System {
     #[base]
     pub node: Base<Node>,
+    system_state: SystemState,
+    time_accumulator: f32,
+    is_preview: bool,
+    screen_queue: Arc<Mutex<Vec<ScreenCapture>>>,
+    packets_queue: Arc<Mutex<Vec<Vec<TranslationPacket>>>>,
+    error_queue: Arc<Mutex<Vec<ErrorOrWarning>>>,
 }
 
 #[godot_api]
@@ -28,6 +71,12 @@ impl INode for System {
     fn init(node: Base<Node>) -> Self {
         System {
             node,
+            system_state: SystemState::IDLE,
+            time_accumulator: 0.0,
+            is_preview: false,
+            screen_queue: Arc::new(Mutex::new(Vec::new())),
+            packets_queue: Arc::new(Mutex::new(Vec::new())),
+            error_queue: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
@@ -36,6 +85,14 @@ impl INode for System {
         // -- MOUSE CURSOR --
         let mouse_cursor = load::<Resource>("res://menu/sprite/mouse_cursor.png");
         Input::singleton().set_custom_mouse_cursor(mouse_cursor.upcast());
+        // -- LOAD CREDENTIALS --
+        if FileAccess::file_exists("user://credentials.toml".into()) {
+            self.load_credentials();
+        }
+        // -- LOAD READING AREA --
+        if FileAccess::file_exists("user://reading_area.toml".into()) {
+            self.load_reading_area();
+        }
     }
 
     fn input(&mut self, event: Gd<InputEvent>) {
@@ -62,11 +119,94 @@ impl INode for System {
             Input::singleton().set_custom_mouse_cursor(mouse_cursor.upcast());
         }
         if is_capture_pressed {
-            self.read_screen();
+            self.capture_screen(false);
         }
     }
 
-    fn process(&mut self, delta: f64) {}
+    fn process(&mut self, delta: f64) {
+        let mut console = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/console_text");
+        match self.system_state {
+            SystemState::IDLE => {
+                self.time_accumulator = 0.0;
+            },
+            SystemState::CAPTURING => {
+                // ---- CONSOLE UPDATES ----
+                self.clear_errors();
+                self.time_accumulator += delta as f32;
+                if self.time_accumulator <= 0.1 {
+                    console.set_text("Capturing Screen.".into());
+                } else if self.time_accumulator > 0.1 && self.time_accumulator <= 0.2 {
+                    console.set_text("Capturing Screen..".into());
+                } else if self.time_accumulator > 0.2 && self.time_accumulator <= 0.3 {
+                    console.set_text("Capturing Screen...".into());
+                } else if self.time_accumulator > 0.3 && self.time_accumulator <= 0.4 {
+                    self.time_accumulator = 0.0;
+                }
+                // ---- CATCH SCREEN CAPTURE ----
+                let mut screen_queue = self.screen_queue.lock().unwrap();
+                if let Some(screen_capture) = screen_queue.pop() {
+                    let png_buffer = screen_capture.png_buffer;
+                    if screen_capture.is_preview == true {
+                        let mut screen_image = Image::new();
+                        screen_image.load_png_from_buffer(PackedByteArray::from(png_buffer.clone().into_inner().as_slice()));
+                        let screen_texture = ImageTexture::create_from_image(screen_image).expect("Failed to create ImageTexture!");
+                        let mut screen_textrect = self.base().get_node_as::<TextureRect>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/PanelContainer/VBoxContainer/screen_textrect");
+                        screen_textrect.set_texture(screen_texture.upcast());
+                        console.set_text("Preview refreshed!".into());
+                        self.system_state = SystemState::IDLE;
+                    } else {
+                        drop(screen_queue);
+                        self.read_screen(png_buffer);
+                    }
+                }
+                // ---- CATCH ERRORS ----
+                let mut error_queue = self.error_queue.lock().unwrap();
+                if let Some(eow) = error_queue.pop() {
+                    let string = eow.string;
+                    if eow.is_warning == true {
+                        self.log_warning(string);
+                    } else {
+                        self.log_error(string);
+                    }
+                    self.system_state = SystemState::IDLE;
+                }
+            },
+            SystemState::READING => {
+                // ---- CONSOLE UPDATES ----
+                self.clear_errors();
+                self.time_accumulator += delta as f32;
+                if self.time_accumulator <= 0.1 {
+                    console.set_text("Capturing Screen Done!\nReading Screen.".into());
+                } else if self.time_accumulator > 0.1 && self.time_accumulator <= 0.2 {
+                    console.set_text("Capturing Screen Done!\nReading Screen..".into());
+                } else if self.time_accumulator > 0.2 && self.time_accumulator <= 0.3 {
+                    console.set_text("Capturing Screen Done!\nReading Screen...".into());
+                } else if self.time_accumulator > 0.3 && self.time_accumulator <= 0.4 {
+                    self.time_accumulator = 0.0;
+                }
+                // ---- CATCH PACKETS ----
+                let mut gui = self.base().get_node_as::<sandGUI>("sandGUI");
+                let mut packets_queue = self.packets_queue.lock().unwrap();
+                if let Some(packets) = packets_queue.pop() {
+                    make_packets(gui, packets);
+                    console.set_text("Capturing Screen Done!\nReading Screen Done!".into());
+                    self.system_state = SystemState::IDLE;
+                }
+                // ---- CATCH ERRORS ----
+                let mut error_queue = self.error_queue.lock().unwrap();
+                if let Some(eow) = error_queue.pop() {
+                    let string = eow.string;
+                    if eow.is_warning == true {
+                        self.log_warning(string);
+                    } else {
+                        self.log_error(string);
+                    }
+                    self.system_state = SystemState::IDLE;
+                }
+            },
+            _ => {}
+        }
+    }
 }
 
 // UTILITY FUNCTIONS
@@ -115,7 +255,7 @@ async fn send_deepl_api_request(text: &str, auth_key: &str) -> Result<Value, req
     Ok(response)
 }
 
-fn parse_vision_response(response_json: Value) -> Vec<TranslationPacket> {
+async fn parse_vision_response(response_json: Value, deepl_token: &str) -> Vec<TranslationPacket> {
     let mut packets = Vec::new();
     if let Some(pages) = response_json["responses"][0]["fullTextAnnotation"]["pages"].as_array() {
         for page in pages {
@@ -134,7 +274,29 @@ fn parse_vision_response(response_json: Value) -> Vec<TranslationPacket> {
                                     }
                                 }
                             }
-                            packets.push(TranslationPacket { jp_text: block_text });
+                            // ---- TRANSLATION PACKET PREP ----
+                            // KAKASI
+                            let romaji_text = kakasi::convert(&block_text).romaji.into();
+                            // DEEPL TRANSLATION
+                            match send_deepl_api_request(&block_text, deepl_token).await {
+                                Ok(response) => {
+                                    godot_print!("DeepL response received!");
+                                    let translation_text = parse_deepl_response(response);
+                                    // WRAPUP
+                                    packets.push(TranslationPacket {
+                                        jp_text: block_text,
+                                        jp_read: romaji_text,
+                                        eng_text: translation_text,
+                                    });
+                                }
+                                Err(error) => {
+                                    godot_print!("DeepL error!");
+                                    let eow = ErrorOrWarning {
+                                        string: (format!("Failed to communicate with DeepL: {}", error)),
+                                        is_warning: false,
+                                    };
+                                }
+                            }
                         }
                     }
                 }
@@ -152,7 +314,7 @@ fn parse_deepl_response(response_json: Value) -> String {
     }
 }
 
-async fn new_translation(mut gui: Gd<sandGUI>, deepl_token: &str, packets: Vec<TranslationPacket>) {
+fn make_packets(mut gui: Gd<sandGUI>, packets: Vec<TranslationPacket>) {
     let mut vbox = gui.get_node_as::<VBoxContainer>("MarginContainer/VBoxContainer/vbox_content/TabContainer/Reader/VBoxContainer");
     reset(vbox.clone().upcast());
     godot_print!("Packets found: {}", packets.len());
@@ -162,55 +324,163 @@ async fn new_translation(mut gui: Gd<sandGUI>, deepl_token: &str, packets: Vec<T
         let mut jp_read = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/jpread_container/jpread");
         let mut eng_text = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/engtext_container/engtext");
         jp_text.set_text(packet.jp_text.clone().into());
-        // KAKASI
-        jp_read.set_text(kakasi::convert(&packet.jp_text).romaji.into());
-        // DEEPL TRANSLATION
-        match send_deepl_api_request(&packet.jp_text, deepl_token).await {
-            Ok(response) => {
-                godot_print!("DeepL response received!");
-                let translation_text = parse_deepl_response(response);
-                eng_text.set_text(translation_text.into());
-                make_child(&mut vbox, translation_packet.clone().upcast());
-                gui.bind_mut().fade_in(translation_packet.upcast());
-            }
-            Err(e) => {
-                godot_print!("Error sending translation request: {:?}", e);
-            }
-        }
+        jp_read.set_text(packet.jp_read.into());
+        eng_text.set_text(packet.eng_text.into());
+        // -- SETTINGS --
+        let mut font_size_box = gui.get_node_as::<LineEdit>("MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer/LineEdit");
+        let font_size = font_size_box.get_text().to_string().parse::<i32>().unwrap().max(12).min(36);
+        font_size_box.set_text(font_size.to_string().into());
+        jp_text.add_theme_font_size_override("normal_font_size".into(), font_size);
+        jp_read.add_theme_font_size_override("normal_font_size".into(), font_size);
+        eng_text.add_theme_font_size_override("normal_font_size".into(), font_size);
+        make_child(&mut vbox, translation_packet.clone().upcast());
+        gui.bind_mut().fade_in(translation_packet.upcast());
     }
 }
 
 #[godot_api]
 impl System {
-    pub fn read_screen(&mut self) {
-        godot_print!("Reading screen...");
-        let png_buffer = self.capture_screen_return();
+    pub fn read_screen(&mut self, png_buffer: Cursor<Vec<u8>>) {
+        self.system_state = SystemState::READING;
         let base64_encoded_image = encode(&png_buffer.into_inner());
         let request_body = create_vision_api_request(base64_encoded_image);
         // CREDENTIALS
-        let gcloud_token = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/TextEdit").get_text().to_string();
+        let gcloud_token = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/TextEdit").get_text().to_string();
         let project_id = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer8/LineEdit").get_text().to_string();
         let deepl_token = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer9/LineEdit").get_text().to_string();
 
-        tokio::runtime::Runtime::new().unwrap().block_on(async {
-            match send_vision_api_request(request_body, &gcloud_token, &project_id).await {
-                Ok(response) => {
-                    godot_print!("Response received!");
-                    // godot_print!("Response JSON: {}", response);
-                    let packets = parse_vision_response(response);
-                    let mut gui = self.base().get_node_as::<sandGUI>("sandGUI");
-                    new_translation(gui, &deepl_token, packets).await;
+        let packets_queue_clone = Arc::clone(&self.packets_queue);
+        let error_queue_clone = Arc::clone(&self.error_queue);
+
+        thread::spawn(move || {
+            tokio::runtime::Runtime::new().unwrap().block_on(async {
+                match send_vision_api_request(request_body, &gcloud_token, &project_id).await {
+                    Ok(response) => {
+                        godot_print!("Google Cloud Vision response received!");
+                        let packets = parse_vision_response(response.clone(), &deepl_token).await;
+                        if packets.is_empty() {
+                            let mut error_queue = error_queue_clone.lock().unwrap();
+                            let eow = ErrorOrWarning {
+                                string: (format!("Empty reading! It may be that there is no text in the reading area. Otherwise, you may need to update your credentials. Response JSON: {}", response)),
+                                is_warning: true,
+                            };
+                            error_queue.push(eow);
+                        } else {
+                            let mut packets_queue = packets_queue_clone.lock().unwrap();
+                            packets_queue.push(packets);
+                        }
+                    }
+                    Err(error) => {
+                        let mut error_queue = error_queue_clone.lock().unwrap();
+                        godot_print!("Google Cloud Vision error!");
+                        let eow = ErrorOrWarning {
+                            string: (format!("Failed to communicate Google Cloud Vision: {}", error)),
+                            is_warning: false,
+                        };
+                        error_queue.push(eow);
+                    }
                 }
-                Err(e) => {
-                    godot_print!("Error sending request: {:?}", e);
-                }
+            });
+        });
+    }
+
+    #[func]
+    fn capture_screen(&mut self, is_preview: bool) {
+        self.system_state = SystemState::CAPTURING;
+        let start_x_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit").get_text();
+        let start_y_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2").get_text();
+        let width_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer5/LineEdit").get_text();
+        let height_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer6/LineEdit").get_text();
+        let start_x = start_x_text.to_string().parse::<usize>().unwrap();
+        let start_y = start_y_text.to_string().parse::<usize>().unwrap();
+        let width = width_text.to_string().parse::<usize>().unwrap();
+        let height = height_text.to_string().parse::<usize>().unwrap();
+
+        let mut png_buffer = Cursor::new(Vec::new());
+        let screen_queue_clone = Arc::clone(&self.screen_queue);
+        let error_queue_clone = Arc::clone(&self.error_queue);
+
+        thread::spawn(move || {
+            let display = Display::primary().expect("Couldn't find primary display.");
+            let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
+            let (x, y) = (capturer.width(), capturer.height());
+            loop {
+                let frame = match capturer.frame() {
+                    Ok(frame) => frame,
+                    Err(error) => {
+                        if error.kind() == WouldBlock {
+                            thread::sleep(Duration::from_millis(1));
+                            continue;
+                        } else {
+                            let mut error_queue = error_queue_clone.lock().unwrap();
+                            let eow = ErrorOrWarning {
+                                string: (format!("Screen capturing failure: {}", error)),
+                                is_warning: false,
+                            };
+                            error_queue.push(eow);
+                            break;
+                        }
+                    }
+                };
+
+                let full_img: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::from_raw(x as u32, y as u32, frame.to_vec()).unwrap();
+                let cropped_img = full_img.view(start_x as u32, start_y as u32, width as u32, height as u32).to_image();
+                png_buffer = Cursor::new(Vec::new());
+                let dynamic_img = image::DynamicImage::ImageRgba8(cropped_img);
+                dynamic_img.write_to(&mut png_buffer, ImageOutputFormat::Png).unwrap();
+                let mut screen_queue = screen_queue_clone.lock().unwrap();
+                let screen_capture = ScreenCapture { png_buffer, is_preview };
+                screen_queue.push(screen_capture);
+                break;
             }
         });
     }
 
     #[func]
-    fn capture_screen(&self) {
-        // User-defined dimensions and starting coordinates
+    fn save_credentials(&self) {
+        // CREDENTIALS
+        let gcloud_token = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/TextEdit").get_text().to_string();
+        let project_id = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer8/LineEdit").get_text().to_string();
+        let deepl_token = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer9/LineEdit").get_text().to_string();
+
+        let credentials = UserCredentials {
+            gcloud_token,
+            project_id,
+            deepl_token,
+        };
+
+        if let Ok(serialized) = toml::to_string(&credentials) {
+            let mut file = FileAccess::open("user://credentials.toml".into(), ModeFlags::WRITE).expect("Internal Error: Failed to open file!");
+            file.store_string(serialized.into());
+            file.close();
+            let mut console = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/console_text");
+            console.set_text("Reading Area Preset saved!".into());
+        } else { self.log_error("Failed to save Credentials! You may have used invalid values.".to_string()); }
+    }
+
+    fn load_credentials(&self) {
+        let mut file = FileAccess::open("user://credentials.toml".into(), ModeFlags::READ).expect("Failed to open file!");
+        let contents = file.get_as_text().to_string();
+        file.close();
+        match toml::from_str::<UserCredentials>(&contents) {
+            Ok(credentials) => {
+                // SET CREDENTIALS
+                let mut gcloud_token = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/TextEdit");
+                let mut project_id = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer8/LineEdit");
+                let mut deepl_token = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer9/LineEdit");
+                gcloud_token.set_text(credentials.gcloud_token.into());
+                project_id.set_text(credentials.project_id.into());
+                deepl_token.set_text(credentials.deepl_token.into());
+            },
+            Err(error) => {
+                self.log_error(format!("Failed to load saved credentials: {}", error));
+            }
+        }
+    }
+
+    #[func]
+    fn save_reading_area(&self) {
+        // READING AREA
         let start_x_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit").get_text();
         let start_y_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2").get_text();
         let width_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer5/LineEdit").get_text();
@@ -220,98 +490,66 @@ impl System {
         let width = width_text.to_string().parse::<usize>().unwrap();
         let height = height_text.to_string().parse::<usize>().unwrap();
 
-        println!("Capturing screen...");
-        let display = Display::primary().expect("Couldn't find primary display.");
-        let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
-        let (x, y) = (capturer.width(), capturer.height());
+        let reading_area = ReadingArea {
+            start_x,
+            start_y,
+            width,
+            height,
+        };
 
-        let mut png_buffer = Cursor::new(Vec::new());
+        if let Ok(serialized) = toml::to_string(&reading_area) {
+            let mut file = FileAccess::open("user://reading_area.toml".into(), ModeFlags::WRITE).expect("Internal Error: Failed to open file!");
+            file.store_string(serialized.into());
+            file.close();
+            let mut console = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/console_text");
+            console.set_text("Reading Area Preset saved!".into());
+        } else { self.log_error("Failed to save Reading Area Preset! You may have used invalid values.".to_string()); }
+    }
 
-        loop {
-            let frame = match capturer.frame() {
-                Ok(frame) => frame,
-                Err(error) => {
-                    if error.kind() == WouldBlock {
-                        thread::sleep(Duration::from_millis(1));
-                        continue;
-                    } else {
-                        panic!("Error: {}", error);
-                    }
-                }
-            };
-
-            // Convert the frame (Vec<u8>) into an ImageBuffer
-            let full_img: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::from_raw(x as u32, y as u32, frame.to_vec()).unwrap();
-
-            // Crop the image to the desired dimensions and starting coordinates
-            let cropped_img = full_img.view(start_x as u32, start_y as u32, width as u32, height as u32).to_image();
-
-            // Encode the cropped ImageBuffer into a PNG buffer
-            png_buffer = Cursor::new(Vec::new());
-            let dynamic_img = image::DynamicImage::ImageRgba8(cropped_img);
-            dynamic_img.write_to(&mut png_buffer, ImageOutputFormat::Png).unwrap();
-
-            println!("Captured a frame of size {}", frame.len());
-            let mut screen_image = Image::new();
-            screen_image.load_png_from_buffer(PackedByteArray::from(png_buffer.clone().into_inner().as_slice()));
-            let screen_texture = ImageTexture::create_from_image(screen_image).expect("Failed to create ImageTexture!");
-            let mut screen_textrect = self.base().get_node_as::<TextureRect>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/PanelContainer/VBoxContainer/screen_textrect");
-            screen_textrect.set_texture(screen_texture.upcast());
-            break;
+    fn load_reading_area(&self) {
+        let mut file = FileAccess::open("user://reading_area.toml".into(), ModeFlags::READ).expect("Failed to open file!");
+        let contents = file.get_as_text().to_string();
+        file.close();
+        match toml::from_str::<ReadingArea>(&contents) {
+            Ok(reading_area) => {
+                // SET CREDENTIALS
+                let mut start_x = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit");
+                let mut start_y = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2");
+                let mut width = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer5/LineEdit");
+                let mut height = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer6/LineEdit");
+                start_x.set_text(reading_area.start_x.to_string().into());
+                start_y.set_text(reading_area.start_y.to_string().into());
+                width.set_text(reading_area.width.to_string().into());
+                height.set_text(reading_area.height.to_string().into());
+            },
+            Err(error) => {
+                self.log_error(format!("Failed to load saved credentials: {}", error));
+            }
         }
     }
 
-    fn capture_screen_return(&self) -> Cursor<Vec<u8>> {
-        // User-defined dimensions and starting coordinates
-        let start_x_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit").get_text();
-        let start_y_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2").get_text();
-        let width_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer5/LineEdit").get_text();
-        let height_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer6/LineEdit").get_text();
-        let start_x = start_x_text.to_string().parse::<usize>().unwrap();
-        let start_y = start_y_text.to_string().parse::<usize>().unwrap();
-        let width = width_text.to_string().parse::<usize>().unwrap();
-        let height = height_text.to_string().parse::<usize>().unwrap();
-
-        println!("Capturing screen...");
-        let display = Display::primary().expect("Couldn't find primary display.");
-        let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
-        let (x, y) = (capturer.width(), capturer.height());
-
-        let mut png_buffer = Cursor::new(Vec::new());
-
-        loop {
-            let frame = match capturer.frame() {
-                Ok(frame) => frame,
-                Err(error) => {
-                    if error.kind() == WouldBlock {
-                        thread::sleep(Duration::from_millis(1));
-                        continue;
-                    } else {
-                        panic!("Error: {}", error);
-                    }
-                }
-            };
-
-            // Convert the frame (Vec<u8>) into an ImageBuffer
-            let full_img: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::from_raw(x as u32, y as u32, frame.to_vec()).unwrap();
-
-            // Crop the image to the desired dimensions and starting coordinates
-            let cropped_img = full_img.view(start_x as u32, start_y as u32, width as u32, height as u32).to_image();
-
-            // Encode the cropped ImageBuffer into a PNG buffer
-            png_buffer = Cursor::new(Vec::new());
-            let dynamic_img = image::DynamicImage::ImageRgba8(cropped_img);
-            dynamic_img.write_to(&mut png_buffer, ImageOutputFormat::Png).unwrap();
-
-            println!("Captured a frame of size {}", frame.len());
-            let mut screen_image = Image::new();
-            screen_image.load_png_from_buffer(PackedByteArray::from(png_buffer.clone().into_inner().as_slice()));
-            let screen_texture = ImageTexture::create_from_image(screen_image).expect("Failed to create ImageTexture!");
-            let mut screen_textrect = self.base().get_node_as::<TextureRect>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/PanelContainer/VBoxContainer/screen_textrect");
-            screen_textrect.set_texture(screen_texture.upcast());
-            break;
-        }
-        return png_buffer;
+    fn log_error(&self, error_string: String) {
+        let mut vbox_error = self.base().get_node_as::<VBoxContainer>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/vbox_error");
+        let mut console_error = vbox_error.get_node_as::<TextEdit>("console_error");
+        console_error.set_text(error_string.into());
+        vbox_error.set_visible(true);
     }
 
+    fn log_warning(&self, warning_string: String) {
+        let mut vbox_warning = self.base().get_node_as::<VBoxContainer>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/vbox_warning");
+        let mut console_warning = vbox_warning.get_node_as::<TextEdit>("console_warning");
+        console_warning.set_text(warning_string.into());
+        vbox_warning.set_visible(true);
+    }
+
+    fn clear_errors(&self) {
+        let mut vbox_error = self.base().get_node_as::<VBoxContainer>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/vbox_error");
+        let mut console_error = vbox_error.get_node_as::<TextEdit>("console_error");
+        let mut vbox_warning = self.base().get_node_as::<VBoxContainer>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/vbox_warning");
+        let mut console_warning = vbox_warning.get_node_as::<TextEdit>("console_warning");
+        vbox_error.set_visible(false);
+        console_error.clear();
+        vbox_warning.set_visible(false);
+        console_warning.clear();
+    }
 }
