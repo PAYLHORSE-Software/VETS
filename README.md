@@ -47,7 +47,7 @@ pacman -S libxcb libxrandr dbus
 ```
 ### Google Cloud Vision
 
-The requirement is as follows: to have a **Google Cloud Project** on your Google account, and to have the **Vision AI** service activated on that project.
+The requirement is as follows: to have a **Google Cloud Project** on your Google account, and to have the **Vision AI service** activated on that project.
 
 https://cloud.google.com/vision/docs/setup
 
