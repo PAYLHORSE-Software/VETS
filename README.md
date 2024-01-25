@@ -70,5 +70,5 @@ https://www.deepl.com/pro-api?cta=header-pro-api
 
 **All done! Please feel free to leave an issue or reach out on Discord if you're having trouble with setup.**
 
-[![Static Badge](https://img.shields.io/badge/PAYLHORSE%20Discord%20Server%20-%20%233d4151?style=plastic&logo=discord&link=https%3A%2F%2Fdiscord.com%2Finvite%2FyzpZ63tJzW)](https://discord.com/invite/yzpZ63tJzW)
+<a href="https://discord.com/invite/yzpZ63tJzW" target="_blank"><img alt="Static Badge" src="https://img.shields.io/badge/PAYLHORSE%20Discord%20Server%20-%20%233d4151?style=plastic&logo=discord&link=https%3A%2F%2Fdiscord.com%2Finvite%2FyzpZ63tJzW"></a>
 
