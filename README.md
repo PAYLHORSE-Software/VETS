@@ -9,7 +9,7 @@
 
 Current translation solutions for Japanese games are too messy for general use. VETS hopes to be a full-featured, unintrusive, utilitarian solution for tackling that text-heavy imported JRPG or VN with confidence.
 
-VETS uses the Google Cloud Vision API to spot text, ![KAKASI](http://kakasi.namazu.org/index.html.en) for romaji conversion, and DeepL machine translation.
+VETS uses Google Cloud Vision to spot text, ![KAKASI](http://kakasi.namazu.org/index.html.en) for romaji conversion, and DeepL machine translation.
 
 ## FEATURES
 
