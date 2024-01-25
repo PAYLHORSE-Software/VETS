@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://4cx3rjxp73re"]
+
+[ext_resource type="Texture2D" uid="uid://d2ejdn5vt60og" path="res://menu/sprite/box_close.png" id="1_eclp3"]
+
+[node name="box" type="TextureRect"]
+custom_minimum_size = Vector2(30, 30)
+texture = ExtResource("1_eclp3")
+expand_mode = 1

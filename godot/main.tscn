@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://d2q7slbpi7qn6"]
+[gd_scene load_steps=24 format=3 uid="uid://d2q7slbpi7qn6"]
 
 [ext_resource type="FontFile" uid="uid://b8ucslu0qt1vv" path="res://menu/font/ShipporiMincho-Regular.ttf" id="1_r3sp7"]
 [ext_resource type="Texture2D" uid="uid://bh842vaj04tc1" path="res://menu/sprite/save.png" id="2_17x32"]
@@ -8,6 +8,9 @@
 [ext_resource type="Shader" path="res://desat.gdshader" id="4_uxn5l"]
 [ext_resource type="Texture2D" uid="uid://d0g3l1kwbo74m" path="res://menu/graphic/vignette_h.png" id="6_djpsk"]
 [ext_resource type="Texture2D" uid="uid://b3qxmsdenqwg1" path="res://menu/graphic/vignette.png" id="6_i063m"]
+[ext_resource type="Texture2D" uid="uid://cv7x8hm8e1fkk" path="res://menu/sprite/camera.png" id="7_psdix"]
+[ext_resource type="Texture2D" uid="uid://b663haqel4lvy" path="res://menu/sprite/key_x.png" id="10_s73xe"]
+[ext_resource type="Texture2D" uid="uid://d14177qo2s34a" path="res://menu/sprite/key_x_pressed.png" id="11_ebadp"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_psbct"]
 bg_color = Color(0.133333, 0.133333, 0.133333, 1)
@@ -106,10 +109,34 @@ corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
+shadow_size = 16
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_3ap0d"]
 shader = ExtResource("4_uxn5l")
 shader_parameter/saturation = 0.4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qbp3u"]
+content_margin_left = 12.0
+content_margin_top = 6.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+bg_color = Color(0.584314, 0.552941, 0.537255, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.0901961, 0.0901961, 0.0901961, 0.792157)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="AnimatedTexture" id="AnimatedTexture_2ktw2"]
+frames = 2
+speed_scale = 2.5
+frame_0/texture = ExtResource("10_s73xe")
+frame_1/texture = ExtResource("11_ebadp")
+frame_1/duration = 1.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_n8ffk"]
 content_margin_left = 10.0
@@ -165,7 +192,7 @@ theme_override_colors/default_color = Color(0.239216, 0.239216, 0.239216, 1)
 theme_override_fonts/normal_font = ExtResource("1_r3sp7")
 theme_override_font_sizes/normal_font_size = 18
 bbcode_enabled = true
-text = "[color=#333333]v0.6 © PAYLHORSE"
+text = "[color=#333333]v0.6.1 © PAYLHORSE"
 fit_content = true
 
 [node name="vbox_content" type="VBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer"]
@@ -176,10 +203,8 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_vertical = 3
 tab_alignment = 2
-current_tab = 1
 
 [node name="Reader" type="MarginContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer"]
-visible = false
 clip_children = 2
 layout_mode = 2
 theme_override_constants/margin_left = 4
@@ -222,6 +247,7 @@ texture = ExtResource("6_i063m")
 expand_mode = 1
 
 [node name="Settings" type="MarginContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer"]
+visible = false
 layout_mode = 2
 theme_override_constants/margin_left = 4
 theme_override_constants/margin_top = 4
@@ -353,45 +379,17 @@ grow_vertical = 2
 texture = ExtResource("6_djpsk")
 expand_mode = 3
 
-[node name="Button" type="Button" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
+[node name="Button5" type="Button" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
 layout_mode = 2
-text = "REFRESH"
-icon = ExtResource("4_ig5gt")
+text = "PREVIEW"
+icon = ExtResource("7_psdix")
 expand_icon = true
 
-[node name="HBoxContainer7" type="HBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
-visible = false
+[node name="Button" type="Button" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
 layout_mode = 2
-
-[node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Capture Start Pos:"
-fit_content = true
-
-[node name="LineEdit" type="LineEdit" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
-layout_mode = 2
-text = "0"
-alignment = 2
-
-[node name="RichTextLabel2" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
-custom_minimum_size = Vector2(20, 0)
-layout_mode = 2
-theme_override_colors/default_color = Color(0.313726, 0.313726, 0.313726, 1)
-text = "X"
-fit_content = true
-
-[node name="LineEdit2" type="LineEdit" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
-layout_mode = 2
-text = "0"
-alignment = 2
-
-[node name="RichTextLabel3" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
-custom_minimum_size = Vector2(20, 0)
-layout_mode = 2
-theme_override_colors/default_color = Color(0.313726, 0.313726, 0.313726, 1)
-text = "Y"
-fit_content = true
+text = "REFRESH WINDOW LIST"
+icon = ExtResource("4_ig5gt")
+expand_icon = true
 
 [node name="HBoxContainer5" type="HBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
 visible = false
@@ -457,9 +455,68 @@ selected = 0
 popup/item_0/text = "None"
 popup/item_0/id = 0
 
+[node name="HBoxContainer7" type="HBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
+layout_mode = 2
+size_flags_horizontal = 3
+bbcode_enabled = true
+text = "Crop:
+[color=#777777](px)"
+fit_content = true
+
+[node name="RichTextLabel2" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+theme_override_colors/default_color = Color(0.313726, 0.313726, 0.313726, 1)
+text = "Up:"
+fit_content = true
+
+[node name="LineEdit" type="LineEdit" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
+layout_mode = 2
+text = "0"
+alignment = 2
+
+[node name="RichTextLabel3" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/default_color = Color(0.313726, 0.313726, 0.313726, 1)
+text = "Down:"
+fit_content = true
+
+[node name="LineEdit2" type="LineEdit" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
+layout_mode = 2
+text = "0"
+alignment = 2
+
+[node name="RichTextLabel4" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+theme_override_colors/default_color = Color(0.313726, 0.313726, 0.313726, 1)
+text = "Left:"
+fit_content = true
+
+[node name="LineEdit3" type="LineEdit" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
+layout_mode = 2
+text = "0"
+alignment = 2
+
+[node name="RichTextLabel5" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+theme_override_colors/default_color = Color(0.313726, 0.313726, 0.313726, 1)
+text = "Right:"
+fit_content = true
+
+[node name="LineEdit4" type="LineEdit" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
+layout_mode = 2
+text = "0"
+alignment = 2
+
 [node name="Button3" type="Button" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
 layout_mode = 2
-text = "SAVE READING AREA CONFIG"
+text = "SAVE CROP VALUES"
 icon = ExtResource("2_17x32")
 expand_icon = true
 
@@ -542,7 +599,58 @@ text = "SAVE TRANSLATION PACKET CONFIG"
 icon = ExtResource("2_17x32")
 expand_icon = true
 
+[node name="Help" type="MarginContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer"]
+visible = false
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="ScrollContainer" type="ScrollContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_qbp3u")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(46, 0)
+layout_mode = 2
+theme_override_colors/default_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
+text = "Welcome to VETS!"
+fit_content = true
+
+[node name="RichTextLabel2" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(46, 0)
+layout_mode = 2
+theme_override_colors/default_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
+text = "Start by inputting CREDENTIALS and configuring the READING AREA in the Settings menu."
+fit_content = true
+
+[node name="HBoxContainer" type="HBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(46, 0)
+layout_mode = 2
+theme_override_colors/default_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
+text = "Press"
+
+[node name="TextureRect" type="TextureRect" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+texture = SubResource("AnimatedTexture_2ktw2")
+
+[node name="RichTextLabel2" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer/VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+theme_override_colors/default_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
+text = " on your keyboard to capture and read the screen."
+
 [node name="PanelContainer" type="PanelContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content"]
+clip_contents = true
 custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_n8ffk")
@@ -567,6 +675,9 @@ Then, press 'x' on your keyboard to capture and read the screen.
 "
 editable = false
 wrap_mode = 1
+
+[node name="HBoxContainer" type="HBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer"]
+layout_mode = 2
 
 [node name="vbox_error" type="VBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer"]
 visible = false
@@ -613,8 +724,8 @@ editable = false
 wrap_mode = 1
 
 [connection signal="pressed" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/Button2" to="." method="save_credentials"]
-[connection signal="pressed" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/Button" to="." method="capture_screen" binds= [true]]
-[connection signal="item_selected" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer10/OptionButton" to="." method="refresh_preview_packet"]
+[connection signal="pressed" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/Button5" to="." method="capture_screen" binds= [true]]
+[connection signal="pressed" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/Button" to="." method="list_windows"]
 [connection signal="pressed" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/Button3" to="." method="save_reading_area"]
 [connection signal="item_selected" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer4/OptionButton" to="." method="refresh_preview_packet"]
 [connection signal="focus_exited" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer/LineEdit" to="." method="refresh_preview_packet"]

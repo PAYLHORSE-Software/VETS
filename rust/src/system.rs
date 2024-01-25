@@ -4,15 +4,15 @@ use std::time::Duration;
 use std::io::Cursor;
 use std::sync::{Arc, Mutex, MutexGuard};
 use godot::prelude::*;
-use godot::engine::{InputEvent, Control, PanelContainer, VBoxContainer, Image, ImageTexture, TextureRect, LineEdit, TextEdit, RichTextLabel, FileAccess, OptionButton, CheckButton, Font};
+use godot::engine::{InputEvent, Control, PanelContainer, VBoxContainer, HBoxContainer, Image, ImageTexture, TextureRect, LineEdit, TextEdit, RichTextLabel, FileAccess, OptionButton, CheckButton, Font};
 use godot::engine::file_access::ModeFlags;
-use scrap::{Capturer, Display};
 use xcap::Window;
 use image::{ImageBuffer, Rgba, ImageOutputFormat, GenericImageView, DynamicImage};
 use base64::encode;
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 use reqwest;
+use kakasi::IsJapanese;
 use crate::utils::*;
 use crate::gui::sandGUI;
 
@@ -48,10 +48,10 @@ struct UserCredentials {
 
 #[derive(Serialize, Deserialize)]
 struct ReadingArea {
-    start_x: usize,
-    start_y: usize,
-    width: usize,
-    height: usize,
+    up: u32,
+    down: u32,
+    left: u32,
+    right: u32,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -79,6 +79,7 @@ pub struct System {
     screen_queue: Arc<Mutex<Vec<ScreenCapture>>>,
     packets_queue: Arc<Mutex<Vec<Vec<TranslationPacket>>>>,
     error_queue: Arc<Mutex<Vec<ErrorOrWarning>>>,
+    box_queue: Arc<Mutex<Vec<()>>>,
 }
 
 #[godot_api]
@@ -92,6 +93,7 @@ impl INode for System {
             screen_queue: Arc::new(Mutex::new(Vec::new())),
             packets_queue: Arc::new(Mutex::new(Vec::new())),
             error_queue: Arc::new(Mutex::new(Vec::new())),
+            box_queue: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
@@ -197,12 +199,18 @@ impl INode for System {
                 } else if self.time_accumulator > 0.3 && self.time_accumulator <= 0.4 {
                     self.time_accumulator = 0.0;
                 }
+                // ---- BOX CONVEYOR ----
+                let mut box_queue = self.box_queue.lock().unwrap();
+                if let Some(()) = box_queue.pop() {
+                    self.add_box_to_conveyor();
+                }
                 // ---- CATCH PACKETS ----
                 let mut gui = self.base().get_node_as::<sandGUI>("sandGUI");
                 let mut packets_queue = self.packets_queue.lock().unwrap();
                 if let Some(packets) = packets_queue.pop() {
                     self.make_packets(gui, packets);
                     console.set_text("Capturing Screen Done!\nReading Screen Done!".into());
+                    self.open_conveyor_boxes();
                     self.system_state = SystemState::IDLE;
                 }
                 // ---- CATCH ERRORS ----
@@ -269,7 +277,7 @@ async fn send_deepl_api_request(text: &str, auth_key: &str) -> Result<Value, req
     Ok(response)
 }
 
-async fn parse_vision_response(response_json: Value, deepl_token: &str) -> Result<Vec<TranslationPacket>, ErrorOrWarning> {
+async fn parse_vision_response(response_json: Value, deepl_token: &str, box_queue_clone: Arc<Mutex<Vec<()>>>) -> Result<Vec<TranslationPacket>, ErrorOrWarning> {
     let mut packets = Vec::new();
     if let Some(pages) = response_json["responses"][0]["fullTextAnnotation"]["pages"].as_array() {
         for page in pages {
@@ -289,6 +297,9 @@ async fn parse_vision_response(response_json: Value, deepl_token: &str) -> Resul
                                 }
                             }
                             // ---- TRANSLATION PACKET PREP ----
+                            if kakasi::is_japanese(&block_text) == IsJapanese::False {
+                                continue;
+                            }
                             // KAKASI
                             let romaji_text = kakasi::convert(&block_text).romaji.into();
                             // DEEPL TRANSLATION
@@ -302,6 +313,8 @@ async fn parse_vision_response(response_json: Value, deepl_token: &str) -> Resul
                                         jp_read: romaji_text,
                                         eng_text: translation_text,
                                     });
+                                    let mut box_queue = box_queue_clone.lock().unwrap();
+                                    box_queue.push(());
                                 }
                                 Err(error) => {
                                     godot_print!("DeepL error!");
@@ -332,7 +345,7 @@ fn parse_deepl_response(response_json: Value) -> String {
 
 #[godot_api]
 impl System {
-
+    #[func]
     fn list_windows(&self) {
         let windows = Window::all().unwrap();
         let vec_string: Vec<String> = windows.into_iter()
@@ -340,10 +353,42 @@ impl System {
             .map(|w| format!("{}", w.title()))
             .collect();
         let mut window_selector = self.base().get_node_as::<OptionButton>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer10/OptionButton");
+        window_selector.clear();
+        window_selector.add_item("None".into());
+        window_selector.select(0);
         for string in vec_string.iter() {
             godot_print!("WINDOW FOUND: {:?}", string);
             window_selector.add_item(string.into());
         }
+    }
+
+    fn add_box_to_conveyor(&self) {
+        let mut box_conveyor = self.base().get_node_as::<HBoxContainer>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/HBoxContainer");
+        if box_conveyor.get_child_count() == 0 {
+            let translating_text = load::<PackedScene>("res://translating_text.tscn").instantiate_as::<RichTextLabel>();
+            make_child(&mut box_conveyor, translating_text.upcast());
+        }
+        let box_icon = load::<PackedScene>("res://box.tscn").instantiate_as::<TextureRect>();
+        make_child(&mut box_conveyor, box_icon.upcast());
+    }
+
+    fn open_conveyor_boxes(&self) {
+        godot_print!("OPENING CONVEYOR BOXES!");
+        let mut box_conveyor = self.base().get_node_as::<HBoxContainer>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/HBoxContainer");
+        let box_count = box_conveyor.get_child_count();
+        godot_print!("Box Count: {}", box_count);
+        reset(box_conveyor.clone().upcast());
+        let translating_text = load::<PackedScene>("res://translating_text.tscn").instantiate_as::<RichTextLabel>();
+        make_child(&mut box_conveyor, translating_text.upcast());
+        for i in 0..(box_count - 1) {
+            let box_icon_open = load::<PackedScene>("res://box_open.tscn").instantiate_as::<TextureRect>();
+            make_child(&mut box_conveyor, box_icon_open.clone().upcast());
+        }
+    }
+
+    fn reset_box_conveyor(&self) {
+        let mut box_conveyor = self.base().get_node_as::<HBoxContainer>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/HBoxContainer");
+        reset(box_conveyor.clone().upcast());
     }
 
     fn read_screen(&mut self, png_buffer: Cursor<Vec<u8>>) {
@@ -357,13 +402,14 @@ impl System {
 
         let packets_queue_clone = Arc::clone(&self.packets_queue);
         let error_queue_clone = Arc::clone(&self.error_queue);
+        let box_queue_clone = Arc::clone(&self.box_queue);
 
         thread::spawn(move || {
             tokio::runtime::Runtime::new().unwrap().block_on(async {
                 match send_vision_api_request(request_body, &gcloud_token, &project_id).await {
                     Ok(response) => {
                         godot_print!("Google Cloud Vision response received!");
-                        let result = parse_vision_response(response.clone(), &deepl_token).await;
+                        let result = parse_vision_response(response.clone(), &deepl_token, box_queue_clone).await;
                         match result {
                             Ok(packets) => {
                                 if packets.is_empty() {
@@ -400,13 +446,30 @@ impl System {
 
     #[func]
     fn capture_screen(&mut self, is_preview: bool) {
+        self.reset_box_conveyor();
+        let up_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit").get_text();
+        let down_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2").get_text();
+        let left_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit3").get_text();
+        let right_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit4").get_text();
+        let margin_up = up_text.to_string().parse::<u32>().unwrap();
+        let margin_down = down_text.to_string().parse::<u32>().unwrap();
+        let margin_left = left_text.to_string().parse::<u32>().unwrap();
+        let margin_right = right_text.to_string().parse::<u32>().unwrap();
+
         self.system_state = SystemState::CAPTURING;
         let mut png_buffer = Cursor::new(Vec::new());
         let screen_queue_clone = Arc::clone(&self.screen_queue);
         let error_queue_clone = Arc::clone(&self.error_queue);
         let window_selector = self.base().get_node_as::<OptionButton>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer10/OptionButton");
         let window_title = window_selector.get_text().to_string();
-        godot_print!("Target window title: {}", window_title);
+        if window_title == "None" {
+            let mut error_queue = error_queue_clone.lock().unwrap();
+            error_queue.push(ErrorOrWarning {
+                string: format!("Please select a target window!"),
+                is_warning: true,
+            });
+            return;
+        }
         thread::spawn(move || {
             let windows = Window::all().unwrap();
             let window = windows.into_iter().find(|w| w.title() == window_title && !w.is_minimized());
@@ -424,7 +487,10 @@ impl System {
                     }
                 };
 
-                let dynamic_img = DynamicImage::ImageRgba8(image);
+                let new_width = image.width().saturating_sub(margin_left + margin_right);
+                let new_height = image.height().saturating_sub(margin_up + margin_down);
+                let cropped_image = image.view(margin_left, margin_up, new_width, new_height).to_image();
+                let dynamic_img = DynamicImage::ImageRgba8(cropped_image);
                 dynamic_img.write_to(&mut png_buffer, ImageOutputFormat::Png).unwrap();
 
                 if !png_buffer.get_ref().is_empty() {
@@ -432,62 +498,16 @@ impl System {
                     let screen_capture = ScreenCapture { png_buffer, is_preview };
                     screen_queue.push(screen_capture);
                 }
-            } else { godot_print!("Window cocked..."); }
+            } else {
+                let mut error_queue = error_queue_clone.lock().unwrap();
+                error_queue.push(ErrorOrWarning {
+                    string: format!("Target window not found: make sure to refresh window list!"),
+                    is_warning: false,
+                });
+                return;
+            }
         });
     }
-
-    // fn capture_screen(&mut self, is_preview: bool) {
-    //     self.system_state = SystemState::CAPTURING;
-    //     let start_x_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit").get_text();
-    //     let start_y_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2").get_text();
-    //     let width_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer5/LineEdit").get_text();
-    //     let height_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer6/LineEdit").get_text();
-    //     let start_x = start_x_text.to_string().parse::<usize>().unwrap();
-    //     let start_y = start_y_text.to_string().parse::<usize>().unwrap();
-    //     let width = width_text.to_string().parse::<usize>().unwrap();
-    //     let height = height_text.to_string().parse::<usize>().unwrap();
-
-    //     let mut png_buffer = Cursor::new(Vec::new());
-    //     let screen_queue_clone = Arc::clone(&self.screen_queue);
-    //     let error_queue_clone = Arc::clone(&self.error_queue);
-
-    //     thread::spawn(move || {
-    //         let display = Display::primary().expect("Couldn't find primary display.");
-    //         let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
-    //         let (x, y) = (capturer.width(), capturer.height());
-    //         loop {
-    //             let frame = match capturer.frame() {
-    //                 Ok(frame) => frame,
-    //                 Err(error) => {
-    //                     if error.kind() == WouldBlock {
-    //                         thread::sleep(Duration::from_millis(1));
-    //                         continue;
-    //                     } else {
-    //                         let mut error_queue = error_queue_clone.lock().unwrap();
-    //                         let eow = ErrorOrWarning {
-    //                             string: (format!("Screen capturing failure: {}", error)),
-    //                             is_warning: false,
-    //                         };
-    //                         error_queue.push(eow);
-    //                         break;
-    //                     }
-    //                 }
-    //             };
-    //             let full_img: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::from_raw(x as u32, y as u32, frame.to_vec()).unwrap();
-    //             let cropped_img = full_img.view(start_x as u32, start_y as u32, width as u32, height as u32).to_image();
-    //             png_buffer = Cursor::new(Vec::new());
-    //             let dynamic_img = image::DynamicImage::ImageRgba8(cropped_img);
-    //             dynamic_img.write_to(&mut png_buffer, ImageOutputFormat::Png).unwrap();
-    //             if png_buffer.get_ref().is_empty() {
-    //                 continue;
-    //             }
-    //             let mut screen_queue = screen_queue_clone.lock().unwrap();
-    //             let screen_capture = ScreenCapture { png_buffer, is_preview };
-    //             screen_queue.push(screen_capture);
-    //             break;
-    //         }
-    //     });
-    // }
 
     #[func]
     fn save_credentials(&self) {
@@ -532,6 +552,8 @@ impl System {
             file.store_string(serialized.into());
             file.close();
             let mut console = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/console_text");
+            self.clear_errors();
+            self.reset_box_conveyor();
             console.set_text("Credentials saved!".into());
         } else { self.log_error("Failed to save Credentials! You may have used invalid values.".to_string()); }
     }
@@ -539,20 +561,20 @@ impl System {
     #[func]
     fn save_reading_area(&self) {
         // READING AREA
-        let start_x_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit").get_text();
-        let start_y_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2").get_text();
-        let width_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer5/LineEdit").get_text();
-        let height_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer6/LineEdit").get_text();
-        let start_x = start_x_text.to_string().parse::<usize>().unwrap();
-        let start_y = start_y_text.to_string().parse::<usize>().unwrap();
-        let width = width_text.to_string().parse::<usize>().unwrap();
-        let height = height_text.to_string().parse::<usize>().unwrap();
+        let up_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit").get_text();
+        let down_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2").get_text();
+        let left_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit3").get_text();
+        let right_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit4").get_text();
+        let up = up_text.to_string().parse::<u32>().unwrap();
+        let down = down_text.to_string().parse::<u32>().unwrap();
+        let left = left_text.to_string().parse::<u32>().unwrap();
+        let right = right_text.to_string().parse::<u32>().unwrap();
 
         let reading_area = Some(ReadingArea {
-            start_x,
-            start_y,
-            width,
-            height,
+            up,
+            down,
+            left,
+            right,
         });
 
 
@@ -586,8 +608,10 @@ impl System {
             file.store_string(serialized.into());
             file.close();
             let mut console = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/console_text");
-            console.set_text("Reading Area Settings saved!".into());
-        } else { self.log_error("Failed to save Reading Area Settings! You may have used invalid values.".to_string()); }
+            self.clear_errors();
+            self.reset_box_conveyor();
+            console.set_text("Crop Values saved!".into());
+        } else { self.log_error("Failed to save Crop Values! You may have used invalid values.".to_string()); }
     }
 
     #[func]
@@ -635,8 +659,10 @@ impl System {
             file.store_string(serialized.into());
             file.close();
             let mut console = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/console_text");
+            self.clear_errors();
+            self.reset_box_conveyor();
             console.set_text("Translation Packet Config saved!".into());
-        } else { self.log_error("Failed to save Reading Area Settings! You may have used invalid values.".to_string()); }
+        } else { self.log_error("Failed to save Packet Config Settings! You may have used invalid values.".to_string()); }
     }
 
     fn load_user_settings(&self) {
@@ -656,14 +682,14 @@ impl System {
                 }
                 // SET READING AREA
                 if let Some(reading_area) = user_settings.reading_area {
-                    let mut start_x = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit");
-                    let mut start_y = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2");
-                    let mut width = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer5/LineEdit");
-                    let mut height = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer6/LineEdit");
-                    start_x.set_text(reading_area.start_x.to_string().into());
-                    start_y.set_text(reading_area.start_y.to_string().into());
-                    width.set_text(reading_area.width.to_string().into());
-                    height.set_text(reading_area.height.to_string().into());
+                    let mut up = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit");
+                    let mut down = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2");
+                    let mut left = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit3");
+                    let mut right = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit4");
+                    up.set_text(reading_area.up.to_string().into());
+                    down.set_text(reading_area.down.to_string().into());
+                    left.set_text(reading_area.left.to_string().into());
+                    right.set_text(reading_area.right.to_string().into());
                 }
                 // SET PACKET CONFIG
                 if let Some(packet_config) = user_settings.packet_config {
@@ -682,6 +708,7 @@ impl System {
     }
 
     fn log_error(&self, error_string: String) {
+        self.reset_box_conveyor();
         let mut vbox_error = self.base().get_node_as::<VBoxContainer>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/vbox_error");
         let mut console_error = vbox_error.get_node_as::<TextEdit>("console_error");
         console_error.set_text(error_string.into());
@@ -689,6 +716,7 @@ impl System {
     }
 
     fn log_warning(&self, warning_string: String) {
+        self.reset_box_conveyor();
         let mut vbox_warning = self.base().get_node_as::<VBoxContainer>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/vbox_warning");
         let mut console_warning = vbox_warning.get_node_as::<TextEdit>("console_warning");
         console_warning.set_text(warning_string.into());

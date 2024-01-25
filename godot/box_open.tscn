@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://cua3py6niu0ux"]
+
+[ext_resource type="Texture2D" uid="uid://d25gc1y6to6g8" path="res://menu/sprite/box_open.png" id="1_jvkjk"]
+
+[node name="box_open" type="TextureRect"]
+custom_minimum_size = Vector2(30, 30)
+texture = ExtResource("1_jvkjk")
+expand_mode = 1
