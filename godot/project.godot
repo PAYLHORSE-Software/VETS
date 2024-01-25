@@ -22,6 +22,10 @@ config/windows_native_icon="res://icon.ico"
 window/size/viewport_width=648
 window/size/viewport_height=1152
 
+[filesystem]
+
+import/blender/enabled=false
+
 [input]
 
 mouse_click={

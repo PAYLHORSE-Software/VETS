@@ -1,25 +1,71 @@
-[gd_scene load_steps=14 format=3 uid="uid://d2q7slbpi7qn6"]
+[gd_scene load_steps=19 format=3 uid="uid://d2q7slbpi7qn6"]
 
 [ext_resource type="FontFile" uid="uid://b8ucslu0qt1vv" path="res://menu/font/ShipporiMincho-Regular.ttf" id="1_r3sp7"]
 [ext_resource type="Texture2D" uid="uid://bh842vaj04tc1" path="res://menu/sprite/save.png" id="2_17x32"]
 [ext_resource type="PackedScene" uid="uid://bbx55nsngcb8o" path="res://translation_packet.tscn" id="3_xfip8"]
 [ext_resource type="Texture2D" uid="uid://bu4jb7r0gkmjj" path="res://menu/graphic/placeholder.png" id="3_xx6t0"]
 [ext_resource type="Texture2D" uid="uid://dowesepbdiydr" path="res://menu/sprite/refresh.png" id="4_ig5gt"]
+[ext_resource type="Shader" path="res://desat.gdshader" id="4_uxn5l"]
+[ext_resource type="Texture2D" uid="uid://d0g3l1kwbo74m" path="res://menu/graphic/vignette_h.png" id="6_djpsk"]
+[ext_resource type="Texture2D" uid="uid://b3qxmsdenqwg1" path="res://menu/graphic/vignette.png" id="6_i063m"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_psbct"]
 bg_color = Color(0.133333, 0.133333, 0.133333, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.14902, 0.14902, 0.14902, 1)
+border_blend = true
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hru88"]
 bg_color = Color(0.180392, 0.180392, 0.180392, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.215686, 0.215686, 0.215686, 1)
+border_blend = true
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_cwixe"]
 bg_color = Color(0.109804, 0.109804, 0.109804, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.207843, 0.207843, 0.207843, 1)
+border_blend = true
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
 
 [sub_resource type="Theme" id="Theme_ympfr"]
 default_font = ExtResource("1_r3sp7")
 VScrollBar/styles/grabber = SubResource("StyleBoxFlat_psbct")
 VScrollBar/styles/grabber_highlight = SubResource("StyleBoxFlat_hru88")
 VScrollBar/styles/grabber_pressed = SubResource("StyleBoxFlat_cwixe")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_n5yn1"]
+bg_color = Color(0.121569, 0.121569, 0.121569, 0.8)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.227451, 0.227451, 0.227451, 0.470588)
+border_blend = true
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ouk8d"]
 content_margin_left = 12.0
@@ -33,6 +79,12 @@ content_margin_top = 6.0
 content_margin_right = 12.0
 content_margin_bottom = 12.0
 bg_color = Color(0.0431373, 0.0431373, 0.0431373, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.8, 0.8, 0.8, 0.211765)
+border_blend = true
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
@@ -43,11 +95,21 @@ content_margin_left = 10.0
 content_margin_top = 10.0
 content_margin_right = 10.0
 content_margin_bottom = 10.0
-bg_color = Color(0.901961, 0.866667, 0.819608, 1)
+bg_color = Color(0.568627, 0.537255, 0.533333, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.482353, 0.482353, 0.482353, 1)
+border_blend = true
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3ap0d"]
+shader = ExtResource("4_uxn5l")
+shader_parameter/saturation = 0.4
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_n8ffk"]
 content_margin_left = 10.0
@@ -103,7 +165,7 @@ theme_override_colors/default_color = Color(0.239216, 0.239216, 0.239216, 1)
 theme_override_fonts/normal_font = ExtResource("1_r3sp7")
 theme_override_font_sizes/normal_font_size = 18
 bbcode_enabled = true
-text = "[color=#333333]v0.2 © PAYLHORSE"
+text = "[color=#333333]v0.6 © PAYLHORSE"
 fit_content = true
 
 [node name="vbox_content" type="VBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer"]
@@ -116,28 +178,48 @@ size_flags_vertical = 3
 tab_alignment = 2
 current_tab = 1
 
-[node name="Reader" type="ScrollContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer"]
+[node name="Reader" type="MarginContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer"]
 visible = false
+clip_children = 2
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="PanelContainer" type="PanelContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Reader"]
+clip_children = 2
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_n5yn1")
+
+[node name="ScrollContainer" type="ScrollContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Reader/PanelContainer"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoxEmpty_ouk8d")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Reader"]
+[node name="VBoxContainer" type="VBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Reader/PanelContainer/ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="MarginContainer" type="MarginContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Reader/VBoxContainer"]
+[node name="MarginContainer" type="MarginContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Reader/PanelContainer/ScrollContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_constants/margin_left = 60
 theme_override_constants/margin_top = 80
 theme_override_constants/margin_right = 60
 
-[node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Reader/VBoxContainer/MarginContainer"]
+[node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Reader/PanelContainer/ScrollContainer/VBoxContainer/MarginContainer"]
 layout_mode = 2
 theme_override_colors/default_color = Color(0.388235, 0.388235, 0.388235, 1)
 bbcode_enabled = true
 text = "[center]Translation Packets will appear here after capturing and reading the screen."
 fit_content = true
+
+[node name="TextureRect" type="TextureRect" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Reader/PanelContainer"]
+modulate = Color(1, 1, 1, 0.431373)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("6_i063m")
+expand_mode = 1
 
 [node name="Settings" type="MarginContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer"]
 layout_mode = 2
@@ -243,9 +325,33 @@ text = "PREVIEW
 fit_content = true
 
 [node name="screen_textrect" type="TextureRect" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/PanelContainer/VBoxContainer"]
+clip_children = 2
+material = SubResource("ShaderMaterial_3ap0d")
 layout_mode = 2
 texture = ExtResource("3_xx6t0")
 expand_mode = 5
+
+[node name="TextureRect" type="TextureRect" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/PanelContainer/VBoxContainer/screen_textrect"]
+modulate = Color(1, 1, 1, 0.392157)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("6_i063m")
+expand_mode = 3
+
+[node name="TextureRect2" type="TextureRect" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/PanelContainer/VBoxContainer/screen_textrect"]
+modulate = Color(1, 1, 1, 0.392157)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("6_djpsk")
+expand_mode = 3
 
 [node name="Button" type="Button" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
 layout_mode = 2
@@ -254,6 +360,7 @@ icon = ExtResource("4_ig5gt")
 expand_icon = true
 
 [node name="HBoxContainer7" type="HBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
+visible = false
 layout_mode = 2
 
 [node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7"]
@@ -287,6 +394,7 @@ text = "Y"
 fit_content = true
 
 [node name="HBoxContainer5" type="HBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
+visible = false
 layout_mode = 2
 
 [node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer5"]
@@ -308,6 +416,7 @@ text = "px"
 fit_content = true
 
 [node name="HBoxContainer6" type="HBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
+visible = false
 layout_mode = 2
 
 [node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer6"]
@@ -329,9 +438,28 @@ text = "px
 "
 fit_content = true
 
+[node name="HBoxContainer10" type="HBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer10"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Target Window:"
+fit_content = true
+
+[node name="OptionButton" type="OptionButton" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer10"]
+layout_mode = 2
+size_flags_horizontal = 3
+flat = true
+text_overrun_behavior = 3
+item_count = 1
+selected = 0
+popup/item_0/text = "None"
+popup/item_0/id = 0
+
 [node name="Button3" type="Button" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
 layout_mode = 2
-text = "SAVE READING AREA PRESET"
+text = "SAVE READING AREA CONFIG"
 icon = ExtResource("2_17x32")
 expand_icon = true
 
@@ -406,6 +534,13 @@ fit_content = true
 
 [node name="CheckButton" type="CheckButton" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer2"]
 layout_mode = 2
+button_pressed = true
+
+[node name="Button4" type="Button" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+text = "SAVE TRANSLATION PACKET CONFIG"
+icon = ExtResource("2_17x32")
+expand_icon = true
 
 [node name="PanelContainer" type="PanelContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content"]
 custom_minimum_size = Vector2(0, 200)
@@ -440,7 +575,7 @@ layout_mode = 2
 [node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/vbox_error"]
 layout_mode = 2
 theme_override_colors/default_color = Color(0.662745, 0.415686, 0.301961, 1)
-text = "!ERROR !"
+text = "! ERROR !"
 fit_content = true
 text_direction = 2
 
@@ -479,6 +614,11 @@ wrap_mode = 1
 
 [connection signal="pressed" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/Button2" to="." method="save_credentials"]
 [connection signal="pressed" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/Button" to="." method="capture_screen" binds= [true]]
+[connection signal="item_selected" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer10/OptionButton" to="." method="refresh_preview_packet"]
 [connection signal="pressed" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/Button3" to="." method="save_reading_area"]
+[connection signal="item_selected" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer4/OptionButton" to="." method="refresh_preview_packet"]
+[connection signal="focus_exited" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer/LineEdit" to="." method="refresh_preview_packet"]
+[connection signal="toggled" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer2/CheckButton" to="." method="refresh_preview_packet"]
+[connection signal="pressed" from="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/Button4" to="." method="save_packet_config"]
 
 [editable path="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/translation_packet"]

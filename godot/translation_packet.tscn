@@ -13,6 +13,7 @@ corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
+shadow_size = 4
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_xnpai"]
 content_margin_left = 10.0
@@ -27,6 +28,7 @@ corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
+shadow_size = 2
 
 [node name="translation_packet" type="PanelContainer"]
 offset_right = 647.0

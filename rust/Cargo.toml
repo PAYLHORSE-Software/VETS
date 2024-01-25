@@ -12,6 +12,7 @@ bindgen = "0.69.2"
 [dependencies]
 base64 = "0.21.7"
 godot = { git = "https://github.com/godot-rust/gdext", branch = "master", features = ["experimental-godot-api"] }
+xcap = { git = "https://github.com/nashaofu/xcap", branch = "master" }
 image = "0.24.8"
 kakasi = "0.1.0"
 reqwest = { version = "0.11.23", features = ["json"] }

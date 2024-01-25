@@ -4,10 +4,11 @@ use std::time::Duration;
 use std::io::Cursor;
 use std::sync::{Arc, Mutex, MutexGuard};
 use godot::prelude::*;
-use godot::engine::{InputEvent, Control, PanelContainer, VBoxContainer, Image, ImageTexture, TextureRect, LineEdit, TextEdit, RichTextLabel, FileAccess};
+use godot::engine::{InputEvent, Control, PanelContainer, VBoxContainer, Image, ImageTexture, TextureRect, LineEdit, TextEdit, RichTextLabel, FileAccess, OptionButton, CheckButton, Font};
 use godot::engine::file_access::ModeFlags;
 use scrap::{Capturer, Display};
-use image::{ImageBuffer, Rgba, ImageOutputFormat, GenericImageView};
+use xcap::Window;
+use image::{ImageBuffer, Rgba, ImageOutputFormat, GenericImageView, DynamicImage};
 use base64::encode;
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
@@ -32,6 +33,13 @@ struct TranslationPacket {
 }
 
 #[derive(Serialize, Deserialize)]
+struct UserSettings {
+    user_credentials: Option<UserCredentials>,
+    reading_area: Option<ReadingArea>,
+    packet_config: Option<PacketConfig>,
+}
+
+#[derive(Serialize, Deserialize)]
 struct UserCredentials {
         gcloud_token: String,
         project_id: String,
@@ -44,6 +52,13 @@ struct ReadingArea {
     start_y: usize,
     width: usize,
     height: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PacketConfig {
+    jp_font: i32,
+    font_size: usize,
+    romaji: bool,
 }
 
 enum SystemState {
@@ -85,14 +100,12 @@ impl INode for System {
         // -- MOUSE CURSOR --
         let mouse_cursor = load::<Resource>("res://menu/sprite/mouse_cursor.png");
         Input::singleton().set_custom_mouse_cursor(mouse_cursor.upcast());
-        // -- LOAD CREDENTIALS --
-        if FileAccess::file_exists("user://credentials.toml".into()) {
-            self.load_credentials();
+        // -- LOAD USER SETTINGS --
+        if FileAccess::file_exists("user://user_settings.toml".into()) {
+            self.load_user_settings();
         }
-        // -- LOAD READING AREA --
-        if FileAccess::file_exists("user://reading_area.toml".into()) {
-            self.load_reading_area();
-        }
+        self.refresh_preview_packet();
+        self.list_windows();
     }
 
     fn input(&mut self, event: Gd<InputEvent>) {
@@ -146,12 +159,12 @@ impl INode for System {
                 let mut screen_queue = self.screen_queue.lock().unwrap();
                 if let Some(screen_capture) = screen_queue.pop() {
                     let png_buffer = screen_capture.png_buffer;
+                    let mut screen_image = Image::new();
+                    screen_image.load_png_from_buffer(PackedByteArray::from(png_buffer.clone().into_inner().as_slice()));
+                    let screen_texture = ImageTexture::create_from_image(screen_image).expect("Failed to create ImageTexture!");
+                    let mut screen_textrect = self.base().get_node_as::<TextureRect>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/PanelContainer/VBoxContainer/screen_textrect");
+                    screen_textrect.set_texture(screen_texture.upcast());
                     if screen_capture.is_preview == true {
-                        let mut screen_image = Image::new();
-                        screen_image.load_png_from_buffer(PackedByteArray::from(png_buffer.clone().into_inner().as_slice()));
-                        let screen_texture = ImageTexture::create_from_image(screen_image).expect("Failed to create ImageTexture!");
-                        let mut screen_textrect = self.base().get_node_as::<TextureRect>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/PanelContainer/VBoxContainer/screen_textrect");
-                        screen_textrect.set_texture(screen_texture.upcast());
                         console.set_text("Preview refreshed!".into());
                         self.system_state = SystemState::IDLE;
                     } else {
@@ -188,7 +201,7 @@ impl INode for System {
                 let mut gui = self.base().get_node_as::<sandGUI>("sandGUI");
                 let mut packets_queue = self.packets_queue.lock().unwrap();
                 if let Some(packets) = packets_queue.pop() {
-                    make_packets(gui, packets);
+                    self.make_packets(gui, packets);
                     console.set_text("Capturing Screen Done!\nReading Screen Done!".into());
                     self.system_state = SystemState::IDLE;
                 }
@@ -210,6 +223,7 @@ impl INode for System {
 }
 
 // UTILITY FUNCTIONS
+
 fn create_vision_api_request(base64_image: String) -> Value {
     json!({
         "requests": [
@@ -316,33 +330,23 @@ fn parse_deepl_response(response_json: Value) -> String {
     }
 }
 
-fn make_packets(mut gui: Gd<sandGUI>, packets: Vec<TranslationPacket>) {
-    let mut vbox = gui.get_node_as::<VBoxContainer>("MarginContainer/VBoxContainer/vbox_content/TabContainer/Reader/VBoxContainer");
-    reset(vbox.clone().upcast());
-    godot_print!("Packets found: {}", packets.len());
-    for packet in packets {
-        let translation_packet = load::<PackedScene>("res://translation_packet.tscn").instantiate_as::<PanelContainer>();
-        let mut jp_text = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/jptext_container/jptext");
-        let mut jp_read = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/jpread_container/jpread");
-        let mut eng_text = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/engtext_container/engtext");
-        jp_text.set_text(packet.jp_text.clone().into());
-        jp_read.set_text(packet.jp_read.into());
-        eng_text.set_text(packet.eng_text.into());
-        // -- SETTINGS --
-        let mut font_size_box = gui.get_node_as::<LineEdit>("MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer/LineEdit");
-        let font_size = font_size_box.get_text().to_string().parse::<i32>().unwrap().max(12).min(36);
-        font_size_box.set_text(font_size.to_string().into());
-        jp_text.add_theme_font_size_override("normal_font_size".into(), font_size);
-        jp_read.add_theme_font_size_override("normal_font_size".into(), font_size);
-        eng_text.add_theme_font_size_override("normal_font_size".into(), font_size);
-        make_child(&mut vbox, translation_packet.clone().upcast());
-        gui.bind_mut().fade_in(translation_packet.upcast());
-    }
-}
-
 #[godot_api]
 impl System {
-    pub fn read_screen(&mut self, png_buffer: Cursor<Vec<u8>>) {
+
+    fn list_windows(&self) {
+        let windows = Window::all().unwrap();
+        let vec_string: Vec<String> = windows.into_iter()
+            .filter(|w| !w.is_minimized())
+            .map(|w| format!("{}", w.title()))
+            .collect();
+        let mut window_selector = self.base().get_node_as::<OptionButton>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer10/OptionButton");
+        for string in vec_string.iter() {
+            godot_print!("WINDOW FOUND: {:?}", string);
+            window_selector.add_item(string.into());
+        }
+    }
+
+    fn read_screen(&mut self, png_buffer: Cursor<Vec<u8>>) {
         self.system_state = SystemState::READING;
         let base64_encoded_image = encode(&png_buffer.into_inner());
         let request_body = create_vision_api_request(base64_encoded_image);
@@ -397,54 +401,93 @@ impl System {
     #[func]
     fn capture_screen(&mut self, is_preview: bool) {
         self.system_state = SystemState::CAPTURING;
-        let start_x_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit").get_text();
-        let start_y_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2").get_text();
-        let width_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer5/LineEdit").get_text();
-        let height_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer6/LineEdit").get_text();
-        let start_x = start_x_text.to_string().parse::<usize>().unwrap();
-        let start_y = start_y_text.to_string().parse::<usize>().unwrap();
-        let width = width_text.to_string().parse::<usize>().unwrap();
-        let height = height_text.to_string().parse::<usize>().unwrap();
-
         let mut png_buffer = Cursor::new(Vec::new());
         let screen_queue_clone = Arc::clone(&self.screen_queue);
         let error_queue_clone = Arc::clone(&self.error_queue);
-
+        let window_selector = self.base().get_node_as::<OptionButton>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer10/OptionButton");
+        let window_title = window_selector.get_text().to_string();
+        godot_print!("Target window title: {}", window_title);
         thread::spawn(move || {
-            let display = Display::primary().expect("Couldn't find primary display.");
-            let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
-            let (x, y) = (capturer.width(), capturer.height());
-            loop {
-                let frame = match capturer.frame() {
-                    Ok(frame) => frame,
-                    Err(error) => {
-                        if error.kind() == WouldBlock {
-                            thread::sleep(Duration::from_millis(1));
-                            continue;
-                        } else {
-                            let mut error_queue = error_queue_clone.lock().unwrap();
-                            let eow = ErrorOrWarning {
-                                string: (format!("Screen capturing failure: {}", error)),
-                                is_warning: false,
-                            };
-                            error_queue.push(eow);
-                            break;
-                        }
+            let windows = Window::all().unwrap();
+            let window = windows.into_iter().find(|w| w.title() == window_title && !w.is_minimized());
+
+            if let Some(window) = window {
+                let image = match window.capture_image() {
+                    Ok(img) => img,
+                    Err(e) => {
+                        let mut error_queue = error_queue_clone.lock().unwrap();
+                        error_queue.push(ErrorOrWarning {
+                            string: format!("Window capturing failure: {}", e),
+                            is_warning: false,
+                        });
+                        return;
                     }
                 };
 
-                let full_img: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::from_raw(x as u32, y as u32, frame.to_vec()).unwrap();
-                let cropped_img = full_img.view(start_x as u32, start_y as u32, width as u32, height as u32).to_image();
-                png_buffer = Cursor::new(Vec::new());
-                let dynamic_img = image::DynamicImage::ImageRgba8(cropped_img);
+                let dynamic_img = DynamicImage::ImageRgba8(image);
                 dynamic_img.write_to(&mut png_buffer, ImageOutputFormat::Png).unwrap();
-                let mut screen_queue = screen_queue_clone.lock().unwrap();
-                let screen_capture = ScreenCapture { png_buffer, is_preview };
-                screen_queue.push(screen_capture);
-                break;
-            }
+
+                if !png_buffer.get_ref().is_empty() {
+                    let mut screen_queue = screen_queue_clone.lock().unwrap();
+                    let screen_capture = ScreenCapture { png_buffer, is_preview };
+                    screen_queue.push(screen_capture);
+                }
+            } else { godot_print!("Window cocked..."); }
         });
     }
+
+    // fn capture_screen(&mut self, is_preview: bool) {
+    //     self.system_state = SystemState::CAPTURING;
+    //     let start_x_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit").get_text();
+    //     let start_y_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2").get_text();
+    //     let width_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer5/LineEdit").get_text();
+    //     let height_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer6/LineEdit").get_text();
+    //     let start_x = start_x_text.to_string().parse::<usize>().unwrap();
+    //     let start_y = start_y_text.to_string().parse::<usize>().unwrap();
+    //     let width = width_text.to_string().parse::<usize>().unwrap();
+    //     let height = height_text.to_string().parse::<usize>().unwrap();
+
+    //     let mut png_buffer = Cursor::new(Vec::new());
+    //     let screen_queue_clone = Arc::clone(&self.screen_queue);
+    //     let error_queue_clone = Arc::clone(&self.error_queue);
+
+    //     thread::spawn(move || {
+    //         let display = Display::primary().expect("Couldn't find primary display.");
+    //         let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
+    //         let (x, y) = (capturer.width(), capturer.height());
+    //         loop {
+    //             let frame = match capturer.frame() {
+    //                 Ok(frame) => frame,
+    //                 Err(error) => {
+    //                     if error.kind() == WouldBlock {
+    //                         thread::sleep(Duration::from_millis(1));
+    //                         continue;
+    //                     } else {
+    //                         let mut error_queue = error_queue_clone.lock().unwrap();
+    //                         let eow = ErrorOrWarning {
+    //                             string: (format!("Screen capturing failure: {}", error)),
+    //                             is_warning: false,
+    //                         };
+    //                         error_queue.push(eow);
+    //                         break;
+    //                     }
+    //                 }
+    //             };
+    //             let full_img: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::from_raw(x as u32, y as u32, frame.to_vec()).unwrap();
+    //             let cropped_img = full_img.view(start_x as u32, start_y as u32, width as u32, height as u32).to_image();
+    //             png_buffer = Cursor::new(Vec::new());
+    //             let dynamic_img = image::DynamicImage::ImageRgba8(cropped_img);
+    //             dynamic_img.write_to(&mut png_buffer, ImageOutputFormat::Png).unwrap();
+    //             if png_buffer.get_ref().is_empty() {
+    //                 continue;
+    //             }
+    //             let mut screen_queue = screen_queue_clone.lock().unwrap();
+    //             let screen_capture = ScreenCapture { png_buffer, is_preview };
+    //             screen_queue.push(screen_capture);
+    //             break;
+    //         }
+    //     });
+    // }
 
     #[func]
     fn save_credentials(&self) {
@@ -453,39 +496,44 @@ impl System {
         let project_id = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer8/LineEdit").get_text().to_string();
         let deepl_token = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer9/LineEdit").get_text().to_string();
 
-        let credentials = UserCredentials {
+        let user_credentials = Some(UserCredentials {
             gcloud_token,
             project_id,
             deepl_token,
+        });
+
+        let mut user_settings = UserSettings {
+            user_credentials,
+            reading_area: None,
+            packet_config: None,
         };
 
-        if let Ok(serialized) = toml::to_string(&credentials) {
-            let mut file = FileAccess::open("user://credentials.toml".into(), ModeFlags::WRITE).expect("Internal Error: Failed to open file!");
+        // PULL
+        if FileAccess::file_exists("user://user_settings.toml".into()) {
+            let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::READ).expect("Failed to open file!");
+            let contents = file.get_as_text().to_string();
+            file.close();
+            match toml::from_str::<UserSettings>(&contents) {
+                Ok(pulled_user_settings) => {
+                    if let Some(reading_area) = pulled_user_settings.reading_area {
+                        user_settings.reading_area =  Some(reading_area);
+                    }
+                    if let Some(packet_config) = pulled_user_settings.packet_config {
+                        user_settings.packet_config =  Some(packet_config);
+                    }
+                },
+                _ => {},
+            }
+        }
+
+        // PUSH
+        if let Ok(serialized) = toml::to_string(&user_settings) {
+            let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::WRITE).expect("Internal Error: Failed to open file!");
             file.store_string(serialized.into());
             file.close();
             let mut console = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/console_text");
-            console.set_text("Reading Area Preset saved!".into());
+            console.set_text("Credentials saved!".into());
         } else { self.log_error("Failed to save Credentials! You may have used invalid values.".to_string()); }
-    }
-
-    fn load_credentials(&self) {
-        let mut file = FileAccess::open("user://credentials.toml".into(), ModeFlags::READ).expect("Failed to open file!");
-        let contents = file.get_as_text().to_string();
-        file.close();
-        match toml::from_str::<UserCredentials>(&contents) {
-            Ok(credentials) => {
-                // SET CREDENTIALS
-                let mut gcloud_token = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/TextEdit");
-                let mut project_id = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer8/LineEdit");
-                let mut deepl_token = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer9/LineEdit");
-                gcloud_token.set_text(credentials.gcloud_token.into());
-                project_id.set_text(credentials.project_id.into());
-                deepl_token.set_text(credentials.deepl_token.into());
-            },
-            Err(error) => {
-                self.log_error(format!("Failed to load saved credentials: {}", error));
-            }
-        }
     }
 
     #[func]
@@ -500,40 +548,135 @@ impl System {
         let width = width_text.to_string().parse::<usize>().unwrap();
         let height = height_text.to_string().parse::<usize>().unwrap();
 
-        let reading_area = ReadingArea {
+        let reading_area = Some(ReadingArea {
             start_x,
             start_y,
             width,
             height,
+        });
+
+
+        let mut user_settings = UserSettings {
+            user_credentials: None,
+            reading_area,
+            packet_config: None,
         };
 
-        if let Ok(serialized) = toml::to_string(&reading_area) {
-            let mut file = FileAccess::open("user://reading_area.toml".into(), ModeFlags::WRITE).expect("Internal Error: Failed to open file!");
+        // PULL
+        if FileAccess::file_exists("user://user_settings.toml".into()) {
+            let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::READ).expect("Failed to open file!");
+            let contents = file.get_as_text().to_string();
+            file.close();
+            match toml::from_str::<UserSettings>(&contents) {
+                Ok(pulled_user_settings) => {
+                    if let Some(user_credentials) = pulled_user_settings.user_credentials {
+                        user_settings.user_credentials =  Some(user_credentials);
+                    }
+                    if let Some(packet_config) = pulled_user_settings.packet_config {
+                        user_settings.packet_config =  Some(packet_config);
+                    }
+                },
+                _ => {},
+            }
+        }
+
+        // PUSH
+        if let Ok(serialized) = toml::to_string(&user_settings) {
+            let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::WRITE).expect("Internal Error: Failed to open file!");
             file.store_string(serialized.into());
             file.close();
             let mut console = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/console_text");
-            console.set_text("Reading Area Preset saved!".into());
-        } else { self.log_error("Failed to save Reading Area Preset! You may have used invalid values.".to_string()); }
+            console.set_text("Reading Area Settings saved!".into());
+        } else { self.log_error("Failed to save Reading Area Settings! You may have used invalid values.".to_string()); }
     }
 
-    fn load_reading_area(&self) {
-        let mut file = FileAccess::open("user://reading_area.toml".into(), ModeFlags::READ).expect("Failed to open file!");
+    #[func]
+    fn save_packet_config(&self) {
+        // TRANSLATION PACKET CONFIG
+        let jp_font = self.base().get_node_as::<OptionButton>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer4/OptionButton").get_selected_id();
+        let font_size_text = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer/LineEdit").get_text();
+        let font_size = font_size_text.to_string().parse::<usize>().unwrap();
+        let romaji = self.base().get_node_as::<CheckButton>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer2/CheckButton").is_pressed();
+
+        let packet_config = Some(PacketConfig {
+            jp_font,
+            font_size,
+            romaji,
+        });
+
+
+        let mut user_settings = UserSettings {
+            user_credentials: None,
+            reading_area: None,
+            packet_config,
+        };
+
+        // PULL
+        if FileAccess::file_exists("user://user_settings.toml".into()) {
+            let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::READ).expect("Failed to open file!");
+            let contents = file.get_as_text().to_string();
+            file.close();
+            match toml::from_str::<UserSettings>(&contents) {
+                Ok(pulled_user_settings) => {
+                    if let Some(user_credentials) = pulled_user_settings.user_credentials {
+                        user_settings.user_credentials =  Some(user_credentials);
+                    }
+                    if let Some(reading_area) = pulled_user_settings.reading_area {
+                        user_settings.reading_area =  Some(reading_area);
+                    }
+                },
+                _ => {},
+            }
+        }
+
+        // PUSH
+        if let Ok(serialized) = toml::to_string(&user_settings) {
+            let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::WRITE).expect("Internal Error: Failed to open file!");
+            file.store_string(serialized.into());
+            file.close();
+            let mut console = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/console_text");
+            console.set_text("Translation Packet Config saved!".into());
+        } else { self.log_error("Failed to save Reading Area Settings! You may have used invalid values.".to_string()); }
+    }
+
+    fn load_user_settings(&self) {
+        let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::READ).expect("Failed to open file!");
         let contents = file.get_as_text().to_string();
         file.close();
-        match toml::from_str::<ReadingArea>(&contents) {
-            Ok(reading_area) => {
+        match toml::from_str::<UserSettings>(&contents) {
+            Ok(user_settings) => {
                 // SET CREDENTIALS
-                let mut start_x = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit");
-                let mut start_y = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2");
-                let mut width = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer5/LineEdit");
-                let mut height = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer6/LineEdit");
-                start_x.set_text(reading_area.start_x.to_string().into());
-                start_y.set_text(reading_area.start_y.to_string().into());
-                width.set_text(reading_area.width.to_string().into());
-                height.set_text(reading_area.height.to_string().into());
+                if let Some(user_credentials) = user_settings.user_credentials {
+                    let mut gcloud_token = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/TextEdit");
+                    let mut project_id = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer8/LineEdit");
+                    let mut deepl_token = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer9/LineEdit");
+                    gcloud_token.set_text(user_credentials.gcloud_token.into());
+                    project_id.set_text(user_credentials.project_id.into());
+                    deepl_token.set_text(user_credentials.deepl_token.into());
+                }
+                // SET READING AREA
+                if let Some(reading_area) = user_settings.reading_area {
+                    let mut start_x = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit");
+                    let mut start_y = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2");
+                    let mut width = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer5/LineEdit");
+                    let mut height = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer6/LineEdit");
+                    start_x.set_text(reading_area.start_x.to_string().into());
+                    start_y.set_text(reading_area.start_y.to_string().into());
+                    width.set_text(reading_area.width.to_string().into());
+                    height.set_text(reading_area.height.to_string().into());
+                }
+                // SET PACKET CONFIG
+                if let Some(packet_config) = user_settings.packet_config {
+                    let mut jp_font = self.base().get_node_as::<OptionButton>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer4/OptionButton");
+                    let mut font_size = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer/LineEdit");
+                    let mut romaji = self.base().get_node_as::<CheckButton>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer2/CheckButton");
+                    jp_font.select(packet_config.jp_font);
+                    font_size.set_text(packet_config.font_size.to_string().into());
+                    romaji.set_pressed(packet_config.romaji);
+                }
             },
             Err(error) => {
-                self.log_error(format!("Failed to load saved credentials: {}", error));
+                self.log_error(format!("Failed to load user settings: {}", error));
             }
         }
     }
@@ -561,5 +704,60 @@ impl System {
         console_error.clear();
         vbox_warning.set_visible(false);
         console_warning.clear();
+    }
+
+    fn make_packets(&self, mut gui: Gd<sandGUI>, packets: Vec<TranslationPacket>) {
+        let mut vbox = gui.get_node_as::<VBoxContainer>("MarginContainer/VBoxContainer/vbox_content/TabContainer/Reader/PanelContainer/ScrollContainer/VBoxContainer");
+        reset(vbox.clone().upcast());
+        godot_print!("Packets found: {}", packets.len());
+        for packet in packets {
+            let mut translation_packet = load::<PackedScene>("res://translation_packet.tscn").instantiate_as::<PanelContainer>();
+            let mut jp_text = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/jptext_container/jptext");
+            let mut jp_read = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/jpread_container/jpread");
+            let mut eng_text = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/engtext_container/engtext");
+            jp_text.set_text(packet.jp_text.clone().into());
+            jp_read.set_text(packet.jp_read.into());
+            eng_text.set_text(packet.eng_text.into());
+            self.post_process_packet(&mut translation_packet);
+            make_child(&mut vbox, translation_packet.clone().upcast());
+            gui.bind_mut().fade_in(translation_packet.upcast());
+        }
+    }
+
+    fn post_process_packet(&self, translation_packet: &mut Gd<PanelContainer>) {
+        // --- APPLY USER SETTINGS ---
+        let gui = self.base().get_node_as::<sandGUI>("sandGUI");
+        let mut jp_text = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/jptext_container/jptext");
+        let mut jp_read = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/jpread_container/jpread");
+        let mut eng_text = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/engtext_container/engtext");
+        // -- JP FONT --
+        let jp_font = gui.get_node_as::<OptionButton>("MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer4/OptionButton").get_selected_id();
+        if jp_font == 0 {
+            let font_dotgothic = load::<Font>("res://menu/font/DotGothic16-Regular.ttf");
+            jp_text.add_theme_font_override("normal_font".into(), font_dotgothic);
+        } else if jp_font == 1 {
+            let font_shippori = load::<Font>("res://menu/font/ShipporiMincho-Regular.ttf");
+            jp_text.add_theme_font_override("normal_font".into(), font_shippori);
+        }
+        // -- FONT SIZE --
+        let mut font_size_box = gui.get_node_as::<LineEdit>("MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer/LineEdit");
+        let font_size = font_size_box.get_text().to_string().parse::<i32>().unwrap().max(12).min(36);
+        font_size_box.set_text(font_size.to_string().into());
+        jp_text.add_theme_font_size_override("normal_font_size".into(), font_size);
+        jp_read.add_theme_font_size_override("normal_font_size".into(), font_size);
+        eng_text.add_theme_font_size_override("normal_font_size".into(), font_size);
+        // -- ROMAJI --
+        let romaji = gui.get_node_as::<CheckButton>("MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer2/CheckButton").is_pressed();
+        if romaji == true {
+            jp_read.set_visible(true);
+        } else {
+            jp_read.set_visible(false);
+        }
+    }
+
+    #[func]
+    fn refresh_preview_packet(&self) {
+        let mut translation_packet = self.base().get_node_as::<PanelContainer>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/translation_packet");
+        self.post_process_packet(&mut translation_packet);
     }
 }
