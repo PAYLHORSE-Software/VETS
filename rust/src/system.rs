@@ -4,8 +4,8 @@ use std::time::Duration;
 use std::io::Cursor;
 use std::sync::{Arc, Mutex, MutexGuard};
 use godot::prelude::*;
-use godot::engine::{InputEvent, Control, PanelContainer, VBoxContainer, HBoxContainer, Image, ImageTexture, TextureRect, LineEdit, TextEdit, RichTextLabel, FileAccess, OptionButton, CheckButton, Font};
-use godot::engine::file_access::ModeFlags;
+use godot::classes::{InputEvent, Control, PanelContainer, VBoxContainer, HBoxContainer, Image, ImageTexture, TextureRect, LineEdit, TextEdit, RichTextLabel, FileAccess, OptionButton, CheckButton, Font};
+use godot::classes::file_access::ModeFlags;
 use xcap::Window;
 use image::{ImageBuffer, Rgba, ImageOutputFormat, GenericImageView, DynamicImage};
 use base64::encode;
@@ -101,9 +101,9 @@ impl INode for System {
         godot_print!("Starting VETS...");
         // -- MOUSE CURSOR --
         let mouse_cursor = load::<Resource>("res://menu/sprite/mouse_cursor.png");
-        Input::singleton().set_custom_mouse_cursor(mouse_cursor.upcast());
+        Input::singleton().set_custom_mouse_cursor(&mouse_cursor);
         // -- LOAD USER SETTINGS --
-        if FileAccess::file_exists("user://user_settings.toml".into()) {
+        if FileAccess::file_exists("user://user_settings.toml") {
             self.load_user_settings();
         }
         self.refresh_preview_packet();
@@ -112,26 +112,26 @@ impl INode for System {
 
     fn input(&mut self, event: Gd<InputEvent>) {
         // --- MOUSE CURSOR ---
-        let is_mouse_clicked = Input::singleton().is_action_just_pressed("mouse_click".into());
-        let is_mouse_released = Input::singleton().is_action_just_released("mouse_click".into());
-        let is_mouse_right_clicked = Input::singleton().is_action_just_pressed("mouse_rightclick".into());
-        let is_mouse_right_released = Input::singleton().is_action_just_released("mouse_rightclick".into());
-        let is_capture_pressed = Input::singleton().is_action_just_pressed("capture".into());
+        let is_mouse_clicked = Input::singleton().is_action_just_pressed("mouse_click");
+        let is_mouse_released = Input::singleton().is_action_just_released("mouse_click");
+        let is_mouse_right_clicked = Input::singleton().is_action_just_pressed("mouse_rightclick");
+        let is_mouse_right_released = Input::singleton().is_action_just_released("mouse_rightclick");
+        let is_capture_pressed = Input::singleton().is_action_just_pressed("capture");
         if is_mouse_clicked {
             let mouse_cursor = load::<Resource>("res://menu/sprite/mouse_cursor_2.png");
-            Input::singleton().set_custom_mouse_cursor(mouse_cursor.upcast());
+            Input::singleton().set_custom_mouse_cursor(&mouse_cursor);
         }
         if is_mouse_released {
             let mouse_cursor = load::<Resource>("res://menu/sprite/mouse_cursor.png");
-            Input::singleton().set_custom_mouse_cursor(mouse_cursor.upcast());
+            Input::singleton().set_custom_mouse_cursor(&mouse_cursor);
         }
         if is_mouse_right_clicked {
             let mouse_cursor = load::<Resource>("res://menu/sprite/mouse_cursor_3.png");
-            Input::singleton().set_custom_mouse_cursor(mouse_cursor.upcast());
+            Input::singleton().set_custom_mouse_cursor(&mouse_cursor);
         }
         if is_mouse_right_released {
             let mouse_cursor = load::<Resource>("res://menu/sprite/mouse_cursor.png");
-            Input::singleton().set_custom_mouse_cursor(mouse_cursor.upcast());
+            Input::singleton().set_custom_mouse_cursor(&mouse_cursor);
         }
         if is_capture_pressed {
             self.capture_screen(false);
@@ -149,11 +149,11 @@ impl INode for System {
                 self.clear_errors();
                 self.time_accumulator += delta as f32;
                 if self.time_accumulator <= 0.1 {
-                    console.set_text("Capturing Screen.".into());
+                    console.set_text("Capturing Screen.");
                 } else if self.time_accumulator > 0.1 && self.time_accumulator <= 0.2 {
-                    console.set_text("Capturing Screen..".into());
+                    console.set_text("Capturing Screen..");
                 } else if self.time_accumulator > 0.2 && self.time_accumulator <= 0.3 {
-                    console.set_text("Capturing Screen...".into());
+                    console.set_text("Capturing Screen...");
                 } else if self.time_accumulator > 0.3 && self.time_accumulator <= 0.4 {
                     self.time_accumulator = 0.0;
                 }
@@ -161,13 +161,13 @@ impl INode for System {
                 let mut screen_queue = self.screen_queue.lock().unwrap();
                 if let Some(screen_capture) = screen_queue.pop() {
                     let png_buffer = screen_capture.png_buffer;
-                    let mut screen_image = Image::new();
-                    screen_image.load_png_from_buffer(PackedByteArray::from(png_buffer.clone().into_inner().as_slice()));
-                    let screen_texture = ImageTexture::create_from_image(screen_image).expect("Failed to create ImageTexture!");
+                    let mut screen_image = Image::new_gd();
+                    screen_image.load_png_from_buffer(&PackedByteArray::from(png_buffer.clone().into_inner().as_slice()));
+                    let screen_texture = ImageTexture::create_from_image(&screen_image).expect("Failed to create ImageTexture!");
                     let mut screen_textrect = self.base().get_node_as::<TextureRect>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/PanelContainer/VBoxContainer/screen_textrect");
-                    screen_textrect.set_texture(screen_texture.upcast());
+                    screen_textrect.set_texture(&screen_texture);
                     if screen_capture.is_preview == true {
-                        console.set_text("Preview refreshed!".into());
+                        console.set_text("Preview refreshed!");
                         self.system_state = SystemState::IDLE;
                     } else {
                         drop(screen_queue);
@@ -191,11 +191,11 @@ impl INode for System {
                 self.clear_errors();
                 self.time_accumulator += delta as f32;
                 if self.time_accumulator <= 0.1 {
-                    console.set_text("Capturing Screen Done!\nReading Screen.".into());
+                    console.set_text("Capturing Screen Done!\nReading Screen.");
                 } else if self.time_accumulator > 0.1 && self.time_accumulator <= 0.2 {
-                    console.set_text("Capturing Screen Done!\nReading Screen..".into());
+                    console.set_text("Capturing Screen Done!\nReading Screen..");
                 } else if self.time_accumulator > 0.2 && self.time_accumulator <= 0.3 {
-                    console.set_text("Capturing Screen Done!\nReading Screen...".into());
+                    console.set_text("Capturing Screen Done!\nReading Screen...");
                 } else if self.time_accumulator > 0.3 && self.time_accumulator <= 0.4 {
                     self.time_accumulator = 0.0;
                 }
@@ -209,7 +209,7 @@ impl INode for System {
                 let mut packets_queue = self.packets_queue.lock().unwrap();
                 if let Some(packets) = packets_queue.pop() {
                     self.make_packets(gui, packets);
-                    console.set_text("Capturing Screen Done!\nReading Screen Done!".into());
+                    console.set_text("Capturing Screen Done!\nReading Screen Done!");
                     self.open_conveyor_boxes();
                     self.system_state = SystemState::IDLE;
                 }
@@ -354,11 +354,11 @@ impl System {
             .collect();
         let mut window_selector = self.base().get_node_as::<OptionButton>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer10/OptionButton");
         window_selector.clear();
-        window_selector.add_item("None".into());
+        window_selector.add_item("None");
         window_selector.select(0);
         for string in vec_string.iter() {
             godot_print!("WINDOW FOUND: {:?}", string);
-            window_selector.add_item(string.into());
+            window_selector.add_item(string);
         }
     }
 
@@ -529,8 +529,8 @@ impl System {
         };
 
         // PULL
-        if FileAccess::file_exists("user://user_settings.toml".into()) {
-            let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::READ).expect("Failed to open file!");
+        if FileAccess::file_exists("user://user_settings.toml") {
+            let mut file = FileAccess::open("user://user_settings.toml", ModeFlags::READ).expect("Failed to open file!");
             let contents = file.get_as_text().to_string();
             file.close();
             match toml::from_str::<UserSettings>(&contents) {
@@ -548,13 +548,13 @@ impl System {
 
         // PUSH
         if let Ok(serialized) = toml::to_string(&user_settings) {
-            let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::WRITE).expect("Internal Error: Failed to open file!");
-            file.store_string(serialized.into());
+            let mut file = FileAccess::open("user://user_settings.toml", ModeFlags::WRITE).expect("Internal Error: Failed to open file!");
+            file.store_string(&serialized);
             file.close();
             let mut console = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/console_text");
             self.clear_errors();
             self.reset_box_conveyor();
-            console.set_text("Credentials saved!".into());
+            console.set_text("Credentials saved!");
         } else { self.log_error("Failed to save Credentials! You may have used invalid values.".to_string()); }
     }
 
@@ -585,8 +585,8 @@ impl System {
         };
 
         // PULL
-        if FileAccess::file_exists("user://user_settings.toml".into()) {
-            let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::READ).expect("Failed to open file!");
+        if FileAccess::file_exists("user://user_settings.toml") {
+            let mut file = FileAccess::open("user://user_settings.toml", ModeFlags::READ).expect("Failed to open file!");
             let contents = file.get_as_text().to_string();
             file.close();
             match toml::from_str::<UserSettings>(&contents) {
@@ -604,13 +604,13 @@ impl System {
 
         // PUSH
         if let Ok(serialized) = toml::to_string(&user_settings) {
-            let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::WRITE).expect("Internal Error: Failed to open file!");
-            file.store_string(serialized.into());
+            let mut file = FileAccess::open("user://user_settings.toml", ModeFlags::WRITE).expect("Internal Error: Failed to open file!");
+            file.store_string(&serialized);
             file.close();
             let mut console = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/console_text");
             self.clear_errors();
             self.reset_box_conveyor();
-            console.set_text("Crop Values saved!".into());
+            console.set_text("Crop Values saved!");
         } else { self.log_error("Failed to save Crop Values! You may have used invalid values.".to_string()); }
     }
 
@@ -636,8 +636,8 @@ impl System {
         };
 
         // PULL
-        if FileAccess::file_exists("user://user_settings.toml".into()) {
-            let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::READ).expect("Failed to open file!");
+        if FileAccess::file_exists("user://user_settings.toml") {
+            let mut file = FileAccess::open("user://user_settings.toml", ModeFlags::READ).expect("Failed to open file!");
             let contents = file.get_as_text().to_string();
             file.close();
             match toml::from_str::<UserSettings>(&contents) {
@@ -655,18 +655,18 @@ impl System {
 
         // PUSH
         if let Ok(serialized) = toml::to_string(&user_settings) {
-            let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::WRITE).expect("Internal Error: Failed to open file!");
-            file.store_string(serialized.into());
+            let mut file = FileAccess::open("user://user_settings.toml", ModeFlags::WRITE).expect("Internal Error: Failed to open file!");
+            file.store_string(&serialized);
             file.close();
             let mut console = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/VBoxContainer/console_text");
             self.clear_errors();
             self.reset_box_conveyor();
-            console.set_text("Translation Packet Config saved!".into());
+            console.set_text("Translation Packet Config saved!");
         } else { self.log_error("Failed to save Packet Config Settings! You may have used invalid values.".to_string()); }
     }
 
     fn load_user_settings(&self) {
-        let mut file = FileAccess::open("user://user_settings.toml".into(), ModeFlags::READ).expect("Failed to open file!");
+        let mut file = FileAccess::open("user://user_settings.toml", ModeFlags::READ).expect("Failed to open file!");
         let contents = file.get_as_text().to_string();
         file.close();
         match toml::from_str::<UserSettings>(&contents) {
@@ -676,9 +676,9 @@ impl System {
                     let mut gcloud_token = self.base().get_node_as::<TextEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/TextEdit");
                     let mut project_id = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer8/LineEdit");
                     let mut deepl_token = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer9/LineEdit");
-                    gcloud_token.set_text(user_credentials.gcloud_token.into());
-                    project_id.set_text(user_credentials.project_id.into());
-                    deepl_token.set_text(user_credentials.deepl_token.into());
+                    gcloud_token.set_text(&user_credentials.gcloud_token);
+                    project_id.set_text(&user_credentials.project_id);
+                    deepl_token.set_text(&user_credentials.deepl_token);
                 }
                 // SET READING AREA
                 if let Some(reading_area) = user_settings.reading_area {
@@ -686,10 +686,10 @@ impl System {
                     let mut down = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit2");
                     let mut left = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit3");
                     let mut right = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer7/LineEdit4");
-                    up.set_text(reading_area.up.to_string().into());
-                    down.set_text(reading_area.down.to_string().into());
-                    left.set_text(reading_area.left.to_string().into());
-                    right.set_text(reading_area.right.to_string().into());
+                    up.set_text(&reading_area.up.to_string());
+                    down.set_text(&reading_area.down.to_string());
+                    left.set_text(&reading_area.left.to_string());
+                    right.set_text(&reading_area.right.to_string());
                 }
                 // SET PACKET CONFIG
                 if let Some(packet_config) = user_settings.packet_config {
@@ -697,7 +697,7 @@ impl System {
                     let mut font_size = self.base().get_node_as::<LineEdit>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer/LineEdit");
                     let mut romaji = self.base().get_node_as::<CheckButton>("sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer2/CheckButton");
                     jp_font.select(packet_config.jp_font);
-                    font_size.set_text(packet_config.font_size.to_string().into());
+                    font_size.set_text(&packet_config.font_size.to_string());
                     romaji.set_pressed(packet_config.romaji);
                 }
             },
@@ -711,7 +711,7 @@ impl System {
         self.reset_box_conveyor();
         let mut vbox_error = self.base().get_node_as::<VBoxContainer>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/vbox_error");
         let mut console_error = vbox_error.get_node_as::<TextEdit>("console_error");
-        console_error.set_text(error_string.into());
+        console_error.set_text(&error_string);
         vbox_error.set_visible(true);
     }
 
@@ -719,7 +719,7 @@ impl System {
         self.reset_box_conveyor();
         let mut vbox_warning = self.base().get_node_as::<VBoxContainer>("sandGUI/MarginContainer/VBoxContainer/vbox_content/PanelContainer/vbox_warning");
         let mut console_warning = vbox_warning.get_node_as::<TextEdit>("console_warning");
-        console_warning.set_text(warning_string.into());
+        console_warning.set_text(&warning_string);
         vbox_warning.set_visible(true);
     }
 
@@ -743,9 +743,9 @@ impl System {
             let mut jp_text = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/jptext_container/jptext");
             let mut jp_read = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/jpread_container/jpread");
             let mut eng_text = translation_packet.get_node_as::<RichTextLabel>("VBoxContainer/engtext_container/engtext");
-            jp_text.set_text(packet.jp_text.clone().into());
-            jp_read.set_text(packet.jp_read.into());
-            eng_text.set_text(packet.eng_text.into());
+            jp_text.set_text(&packet.jp_text.clone());
+            jp_read.set_text(&packet.jp_read);
+            eng_text.set_text(&packet.eng_text);
             self.post_process_packet(&mut translation_packet);
             make_child(&mut vbox, translation_packet.clone().upcast());
             gui.bind_mut().fade_in(translation_packet.upcast());
@@ -762,18 +762,18 @@ impl System {
         let jp_font = gui.get_node_as::<OptionButton>("MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer4/OptionButton").get_selected_id();
         if jp_font == 0 {
             let font_dotgothic = load::<Font>("res://menu/font/DotGothic16-Regular.ttf");
-            jp_text.add_theme_font_override("normal_font".into(), font_dotgothic);
+            jp_text.add_theme_font_override("normal_font", &font_dotgothic);
         } else if jp_font == 1 {
             let font_shippori = load::<Font>("res://menu/font/ShipporiMincho-Regular.ttf");
-            jp_text.add_theme_font_override("normal_font".into(), font_shippori);
+            jp_text.add_theme_font_override("normal_font", &font_shippori);
         }
         // -- FONT SIZE --
         let mut font_size_box = gui.get_node_as::<LineEdit>("MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer/LineEdit");
         let font_size = font_size_box.get_text().to_string().parse::<i32>().unwrap().max(12).min(36);
-        font_size_box.set_text(font_size.to_string().into());
-        jp_text.add_theme_font_size_override("normal_font_size".into(), font_size);
-        jp_read.add_theme_font_size_override("normal_font_size".into(), font_size);
-        eng_text.add_theme_font_size_override("normal_font_size".into(), font_size);
+        font_size_box.set_text(&font_size.to_string());
+        jp_text.add_theme_font_size_override("normal_font_size", font_size);
+        jp_read.add_theme_font_size_override("normal_font_size", font_size);
+        eng_text.add_theme_font_size_override("normal_font_size", font_size);
         // -- ROMAJI --
         let romaji = gui.get_node_as::<CheckButton>("MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer2/CheckButton").is_pressed();
         if romaji == true {

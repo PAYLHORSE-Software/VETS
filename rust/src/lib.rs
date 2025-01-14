@@ -21,7 +21,7 @@ pub mod utils {
     // Instantiate a Node as child of another
     // ----------------------------------------
     pub fn make_child<T: GodotClass + Inherits<Node>>(parent: &mut Gd<T>, child: Gd<Node>) {
-        parent.clone().upcast::<Node>().add_child(child);
+        parent.clone().upcast::<Node>().add_child(&child);
     }
     // __________________________________________
     // Reset a root node: delete all child nodes

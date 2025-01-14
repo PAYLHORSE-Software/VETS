@@ -1,5 +1,5 @@
 use godot::prelude::*;
-use godot::engine::{Control, IControl};
+use godot::classes::{Control, IControl};
 
 // ============================================================
 // -- sandGUIManager --

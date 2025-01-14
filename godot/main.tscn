@@ -1,4 +1,4 @@
-[gd_scene load_steps=24 format=3 uid="uid://d2q7slbpi7qn6"]
+[gd_scene load_steps=25 format=3 uid="uid://d2q7slbpi7qn6"]
 
 [ext_resource type="FontFile" uid="uid://b8ucslu0qt1vv" path="res://menu/font/ShipporiMincho-Regular.ttf" id="1_r3sp7"]
 [ext_resource type="Texture2D" uid="uid://bh842vaj04tc1" path="res://menu/sprite/save.png" id="2_17x32"]
@@ -11,6 +11,7 @@
 [ext_resource type="Texture2D" uid="uid://cv7x8hm8e1fkk" path="res://menu/sprite/camera.png" id="7_psdix"]
 [ext_resource type="Texture2D" uid="uid://b663haqel4lvy" path="res://menu/sprite/key_x.png" id="10_s73xe"]
 [ext_resource type="Texture2D" uid="uid://d14177qo2s34a" path="res://menu/sprite/key_x_pressed.png" id="11_ebadp"]
+[ext_resource type="Texture2D" uid="uid://lumdkht4gah3" path="res://menu/graphic/dualsense.png" id="12_tn2ud"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_psbct"]
 bg_color = Color(0.133333, 0.133333, 0.133333, 1)
@@ -203,6 +204,8 @@ size_flags_vertical = 3
 layout_mode = 2
 size_flags_vertical = 3
 tab_alignment = 2
+current_tab = 0
+tab_focus_mode = 1
 
 [node name="Reader" type="MarginContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer"]
 clip_children = 2
@@ -211,6 +214,7 @@ theme_override_constants/margin_left = 4
 theme_override_constants/margin_top = 4
 theme_override_constants/margin_right = 4
 theme_override_constants/margin_bottom = 4
+metadata/_tab_index = 0
 
 [node name="PanelContainer" type="PanelContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Reader"]
 clip_children = 2
@@ -253,6 +257,7 @@ theme_override_constants/margin_left = 4
 theme_override_constants/margin_top = 4
 theme_override_constants/margin_right = 4
 theme_override_constants/margin_bottom = 4
+metadata/_tab_index = 1
 
 [node name="ScrollContainer" type="ScrollContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings"]
 layout_mode = 2
@@ -450,10 +455,9 @@ layout_mode = 2
 size_flags_horizontal = 3
 flat = true
 text_overrun_behavior = 3
-item_count = 1
 selected = 0
+item_count = 1
 popup/item_0/text = "None"
-popup/item_0/id = 0
 
 [node name="HBoxContainer7" type="HBoxContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer"]
 layout_mode = 2
@@ -551,10 +555,9 @@ fit_content = true
 [node name="OptionButton" type="OptionButton" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Settings/ScrollContainer/VBoxContainer/HBoxContainer4"]
 layout_mode = 2
 flat = true
-item_count = 2
 selected = 0
+item_count = 2
 popup/item_0/text = "DotGothic"
-popup/item_0/id = 0
 popup/item_1/text = "Shippori"
 popup/item_1/id = 1
 
@@ -606,6 +609,7 @@ theme_override_constants/margin_left = 4
 theme_override_constants/margin_top = 4
 theme_override_constants/margin_right = 4
 theme_override_constants/margin_bottom = 4
+metadata/_tab_index = 2
 
 [node name="ScrollContainer" type="ScrollContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help"]
 layout_mode = 2
@@ -634,20 +638,38 @@ fit_content = true
 layout_mode = 2
 
 [node name="RichTextLabel" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer/VBoxContainer/HBoxContainer"]
-custom_minimum_size = Vector2(46, 0)
+custom_minimum_size = Vector2(299, 0)
 layout_mode = 2
 theme_override_colors/default_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
-text = "Press"
+text = "With the VETS window in focus, press"
 
 [node name="TextureRect" type="TextureRect" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer/VBoxContainer/HBoxContainer"]
 layout_mode = 2
 texture = SubResource("AnimatedTexture_2ktw2")
 
-[node name="RichTextLabel2" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer/VBoxContainer/HBoxContainer"]
+[node name="RichTextLabel4" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer/VBoxContainer"]
 custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
 theme_override_colors/default_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
-text = " on your keyboard to capture and read the screen."
+text = "on your keyboard to capture and read the screen."
+fit_content = true
+
+[node name="RichTextLabel3" type="RichTextLabel" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer/VBoxContainer"]
+custom_minimum_size = Vector2(46, 0)
+layout_mode = 2
+theme_override_colors/default_color = Color(0.0980392, 0.0980392, 0.0980392, 1)
+text = "If using a DualSense (PS5) controller, the Microphone Mute button can be used to translate. Assuming input passthrough, this can be done from the game window for ideal usage."
+fit_content = true
+
+[node name="MarginContainer" type="MarginContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/margin_right = 220
+
+[node name="TextureRect" type="TextureRect" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content/TabContainer/Help/ScrollContainer/VBoxContainer/MarginContainer"]
+layout_mode = 2
+texture = ExtResource("12_tn2ud")
+expand_mode = 5
+stretch_mode = 2
 
 [node name="PanelContainer" type="PanelContainer" parent="sandGUI/MarginContainer/VBoxContainer/vbox_content"]
 clip_contents = true
@@ -671,7 +693,7 @@ theme_override_colors/background_color = Color(0, 0, 0, 1)
 theme_override_colors/font_readonly_color = Color(0.694118, 0.694118, 0.694118, 1)
 placeholder_text = "Welcome to VETS!
 Start by inputting CREDENTIALS and configuring the READING AREA in the Settings menu.
-Then, press 'x' on your keyboard to capture and read the screen.
+Then, press 'x' on your keyboard (or DualSense 'Mute Mic') to capture and read the screen.
 "
 editable = false
 wrap_mode = 1
